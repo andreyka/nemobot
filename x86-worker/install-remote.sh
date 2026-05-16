@@ -13,7 +13,7 @@ OPENCLAW_OFFICIAL_CHANNEL_PLUGINS="${OPENCLAW_OFFICIAL_CHANNEL_PLUGINS:-@opencla
 export OPENCLAW_RELEASE OPENCLAW_OFFICIAL_PLUGIN_RELEASE OPENCLAW_OFFICIAL_CHANNEL_PLUGINS
 REMOTE_HOST="${REMOTE_HOST:-}"
 REMOTE_USER="${REMOTE_USER-${USER:-}}"
-REMOTE_DIR="${REMOTE_DIR:-openshell-x86-lab}"
+REMOTE_DIR="${REMOTE_DIR:-openshell-x86-worker}"
 REMOTE_PASSWORD="${REMOTE_PASSWORD:-}"
 RESET_CLUSTER_STATE="${RESET_CLUSTER_STATE:-0}"
 ALLOW_INSECURE_SSH="${ALLOW_INSECURE_SSH:-0}"
@@ -25,7 +25,7 @@ if [[ "${ALLOW_INSECURE_SSH}" == "1" ]]; then
 fi
 
 if [[ -z "${REMOTE_HOST}" ]]; then
-  echo "set REMOTE_HOST to the x86 lab host before running install-remote.sh" >&2
+  echo "set REMOTE_HOST to the x86 worker host before running install-remote.sh" >&2
   exit 2
 fi
 

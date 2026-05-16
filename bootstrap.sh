@@ -20,7 +20,8 @@ Options:
   --skip-browser  Do not deploy host-side browser/proxy containers.
   --skip-worker   Do not deploy the worker sandbox.
   --skip-bridge   Do not deploy the worker bridge.
-  --with-x86-lab  Also prompt for and deploy the optional x86 lab host.
+  --with-x86-worker  Also prompt for and deploy the optional x86 worker host.
+  --with-x86-lab     Backward-compatible alias for --with-x86-worker.
   -h, --help      Show this help.
 EOF
 }
@@ -43,7 +44,7 @@ while [[ $# -gt 0 ]]; do
       SKIP_BRIDGE=1
       shift
       ;;
-    --with-x86-lab)
+    --with-x86-worker|--with-x86-lab)
       DEPLOY_X86=1
       shift
       ;;
@@ -428,7 +429,7 @@ fi
 if (( DEPLOY_X86 )); then
   prompt_value REMOTE_HOST "x86 lab SSH host or IP (localhost allowed)" "${REMOTE_HOST:-}"
   prompt_value REMOTE_USER "x86 lab SSH user (leave blank to use your SSH default)" "${REMOTE_USER-}"
-  prompt_value REMOTE_DIR "x86 lab remote directory" "${REMOTE_DIR:-openshell-x86-lab}"
+  prompt_value REMOTE_DIR "x86 worker remote directory" "${REMOTE_DIR:-openshell-x86-worker}"
   prompt_value REMOTE_PASSWORD "x86 lab SSH password (leave blank for SSH keys)" "${REMOTE_PASSWORD:-}" 1
   prompt_yes_no ALLOW_INSECURE_SSH "Temporarily disable SSH host key verification for the x86 lab bootstrap?" "n"
 
@@ -439,9 +440,9 @@ if (( DEPLOY_X86 )); then
     export ALLOW_INSECURE_SSH=0
   fi
 
-  "${ROOT}/x86-lab/install-remote.sh"
+  "${ROOT}/x86-worker/install-remote.sh"
   if (( SKIP_BRIDGE == 0 )) && (( SKIP_WORKER == 0 )); then
-    "${ROOT}/x86-lab/install-bridge.sh"
+    "${ROOT}/x86-worker/install-bridge.sh"
   fi
 fi
 

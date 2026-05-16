@@ -81,7 +81,7 @@ nemox86worker sandbox
 - Owns the code-capable tool surface: local file work, builds, non-destructive execution, browser, `web_search`, and `web_fetch`.
 - Does not hold Slack credentials.
 - Does not hold raw NVIDIA or Perplexity API keys.
-- Renders its own `openclaw.json` from [worker/templates/openclaw.template.json](../worker/templates/openclaw.template.json) plus shared model/search settings from the frontdoor state, rather than inheriting the frontdoor runtime config.
+- Renders its own `openclaw.json` from [arm-worker/templates/openclaw.template.json](../arm-worker/templates/openclaw.template.json) plus shared model/search settings from the frontdoor state, rather than inheriting the frontdoor runtime config.
 
 ### Worker bridge
 

@@ -10,8 +10,8 @@ copy_state_dir() {
   local dir_name="$1"
   local target_dir="${X86_ROOT}/state/${dir_name}"
   local candidate_dirs=(
-    "${ROOT}/worker/state/${dir_name}"
-    "${ROOT}/worker/templates/${dir_name}"
+    "${ROOT}/arm-worker/state/${dir_name}"
+    "${ROOT}/arm-worker/templates/${dir_name}"
     "${ROOT}/state/${dir_name}"
     "${ROOT}/templates/${dir_name}"
   )
@@ -118,9 +118,9 @@ done
 
 mkdir -p "${X86_ROOT}/state"
 
-python3 "${ROOT}/worker/render-worker-state.py" \
+python3 "${ROOT}/arm-worker/render-worker-state.py" \
   "${ROOT}/state/openclaw.json" \
-  "${ROOT}/worker/templates/openclaw.template.json" \
+  "${ROOT}/arm-worker/templates/openclaw.template.json" \
   "${X86_ROOT}/state/openclaw.json"
 chmod 0600 "${X86_ROOT}/state/openclaw.json"
 

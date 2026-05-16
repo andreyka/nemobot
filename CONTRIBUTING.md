@@ -3,7 +3,7 @@
 ## Ground Rules
 
 - Keep tracked files free of secrets, tokens, private IPs, and machine-local paths.
-- Do not commit anything under local state directories such as `state/`, `worker/state/`, `bridge/state/`, or `x86-lab/state/`.
+- Do not commit anything under local state directories such as `state/`, `arm-worker/state/`, `bridge/state/`, or `x86-worker/state/`.
 - Keep frontdoor and worker trust boundaries intact. Do not move Slack or provider credentials into worker-facing config.
 
 ## Before Opening a Change
@@ -21,8 +21,8 @@ Examples:
 ```bash
 bash -n apply.sh
 bash -n install.sh
-bash -n worker/install.sh
-bash -n x86-lab/install-remote.sh
+bash -n arm-worker/install.sh
+bash -n x86-worker/install-remote.sh
 ```
 
 If you change Python helper services or renderers, run a minimal import or syntax check as well.

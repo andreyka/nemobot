@@ -17,7 +17,7 @@ BACKUP_MEMORY=1
 SKIP_BROWSER=0
 SKIP_WORKER=0
 SKIP_BRIDGE=0
-WITH_X86_LAB=0
+WITH_X86_WORKER=0
 REFRESH_LIVE_FRONTDOOR=0
 REFRESH_LIVE_WORKER=0
 RESET_X86_CLUSTER=0
@@ -44,12 +44,13 @@ Options:
   --skip-browser            Do not rebuild/redeploy host-side browser/proxy containers.
   --skip-worker             Do not redeploy the ARM worker sandbox.
   --skip-bridge             Do not redeploy the frontdoor-side worker bridge.
-  --with-x86-lab            Also update the optional x86 lab host and x86 bridge.
-  --remote-host HOST        x86 lab SSH host.
-  --remote-user USER        x86 lab SSH user.
-  --remote-dir DIR          x86 lab remote directory.
-  --remote-password PASS    x86 lab SSH password. Prefer SSH keys when possible.
-  --allow-insecure-ssh      Disable SSH host-key verification for x86 lab update.
+  --with-x86-worker         Also update the optional x86 worker host and x86 bridge.
+  --with-x86-lab            Backward-compatible alias for --with-x86-worker.
+  --remote-host HOST        x86 worker SSH host.
+  --remote-user USER        x86 worker SSH user.
+  --remote-dir DIR          x86 worker remote directory.
+  --remote-password PASS    x86 worker SSH password. Prefer SSH keys when possible.
+  --allow-insecure-ssh      Disable SSH host-key verification for x86 worker update.
   --reset-x86-cluster       Recreate the x86 OpenShell cluster state during update.
   --refresh-live-frontdoor  Snapshot the running frontdoor sandbox before redeploying.
   --refresh-live-worker     Snapshot the running ARM worker sandbox before redeploying.
@@ -75,8 +76,8 @@ while [[ $# -gt 0 ]]; do
       SKIP_BRIDGE=1
       shift
       ;;
-    --with-x86-lab)
-      WITH_X86_LAB=1
+    --with-x86-worker|--with-x86-lab)
+      WITH_X86_WORKER=1
       shift
       ;;
     --remote-host)
@@ -187,9 +188,9 @@ fi
 
 "${ROOT}/stack-install.sh" "${stack_args[@]}"
 
-if (( WITH_X86_LAB )); then
+if (( WITH_X86_WORKER )); then
   if [[ -z "${REMOTE_HOST}" ]]; then
-    echo "set --remote-host or REMOTE_HOST when using --with-x86-lab" >&2
+    echo "set --remote-host or REMOTE_HOST when using --with-x86-worker" >&2
     exit 2
   fi
 
@@ -200,9 +201,9 @@ if (( WITH_X86_LAB )); then
     export RESET_CLUSTER_STATE=0
   fi
 
-  "${ROOT}/x86-lab/install-remote.sh"
+  "${ROOT}/x86-worker/install-remote.sh"
   if (( SKIP_BRIDGE == 0 )); then
-    "${ROOT}/x86-lab/install-bridge.sh"
+    "${ROOT}/x86-worker/install-bridge.sh"
   fi
 fi
 

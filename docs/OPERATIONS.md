@@ -119,7 +119,7 @@ Use the individual scripts when you only want to touch one layer.
 ### Worker only
 
 ```bash
-./worker/install.sh
+./arm-worker/install.sh
 ```
 
 ### Bridge only
@@ -131,8 +131,8 @@ Use the individual scripts when you only want to touch one layer.
 ### x86 lab worker
 
 ```bash
-./x86-lab/install-remote.sh
-./x86-lab/install-bridge.sh
+./x86-worker/install-remote.sh
+./x86-worker/install-bridge.sh
 ```
 
 ## Refreshing Live State
@@ -146,10 +146,10 @@ Refresh the frontdoor config and workspaces from a running sandbox:
 Refresh the worker from its own running sandbox:
 
 ```bash
-./worker/install.sh --refresh-live-config
+./arm-worker/install.sh --refresh-live-config
 ```
 
-For the worker, this refreshes workspace files from the running sandbox, but `worker/state/openclaw.json` is still re-rendered from the worker template plus shared frontdoor model/search settings. That is intentional. The worker config should not drift by inheriting frontdoor runtime state.
+For the worker, this refreshes workspace files from the running sandbox, but `arm-worker/state/openclaw.json` is still re-rendered from the worker template plus shared frontdoor model/search settings. That is intentional. The worker config should not drift by inheriting frontdoor runtime state.
 
 Refresh the whole stack with the wrapper:
 
@@ -167,17 +167,17 @@ Refresh the whole stack with the wrapper:
   Safe rebuild/update wrapper for the primary ARM stack, with optional x86 worker update
 - [install.sh](../install.sh)
   Frontdoor installer
-- [worker/install.sh](../worker/install.sh)
+- [arm-worker/install.sh](../arm-worker/install.sh)
   Worker installer
-- [worker/prepare-state.sh](../worker/prepare-state.sh)
+- [arm-worker/prepare-state.sh](../arm-worker/prepare-state.sh)
   Seeds worker state and renders worker config from the worker template
-- [worker/render-worker-state.py](../worker/render-worker-state.py)
+- [arm-worker/render-worker-state.py](../arm-worker/render-worker-state.py)
   Worker config renderer
 - [bridge/install.sh](../bridge/install.sh)
   Bridge installer
-- [x86-lab/install-remote.sh](../x86-lab/install-remote.sh)
+- [x86-worker/install-remote.sh](../x86-worker/install-remote.sh)
   Remote deploy entrypoint for the x86 OpenShell cluster, worker sandbox, and host-side helper containers
-- [x86-lab/install-bridge.sh](../x86-lab/install-bridge.sh)
+- [x86-worker/install-bridge.sh](../x86-worker/install-bridge.sh)
   Frontdoor-host bridge installer for the x86 worker
 - [apply.sh](../apply.sh)
   Sandbox image and cluster-object deploy logic
@@ -251,20 +251,20 @@ For an ARM-only rebuild that preserves durable memory:
 For a primary ARM rebuild plus x86 worker update:
 
 ```bash
-./reinstall.sh --with-x86-lab --remote-host x86-lab.example.internal
+./reinstall.sh --with-x86-worker --remote-host x86-worker.example.internal
 ```
 
 For a destructive x86 lab cluster reset during update:
 
 ```bash
-./reinstall.sh --with-x86-lab --remote-host x86-lab.example.internal --reset-x86-cluster
+./reinstall.sh --with-x86-worker --remote-host x86-worker.example.internal --reset-x86-cluster
 ```
 
 Notes:
 
 - `reinstall.sh` does not remove the `openclaw-memory-db-data` Docker volume.
 - If the memory DB is running, it writes a SQL backup under `backups/<timestamp>/openclaw-memory.sql` first.
-- It updates the x86 worker host by rerunning `x86-lab/install-remote.sh`; the frontdoor-host x86 bridge is refreshed in the same run unless `--skip-bridge` is set.
+- It updates the x86 worker host by rerunning `x86-worker/install-remote.sh`; the frontdoor-host x86 bridge is refreshed in the same run unless `--skip-bridge` is set.
 
 ### Cluster objects
 
@@ -324,7 +324,7 @@ docker exec openshell-cluster-nemobot kubectl rollout status deployment/openclaw
 ```bash
 ssh <user>@x86-worker.example.internal 'docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | egrep "openshell-cluster-nemox86|openclaw-cdp-browser|openclaw-(nvidia|perplexity)-proxy"'
 ssh <user>@x86-worker.example.internal 'docker exec openshell-cluster-nemox86 kubectl get pod,svc -n openshell'
-curl -sS http://x86-lab.example.internal:19189/healthz
+curl -sS http://x86-worker.example.internal:19189/healthz
 docker exec openshell-cluster-nemobot kubectl get deploy,svc -n openshell openclaw-x86-worker-bridge
 ```
 

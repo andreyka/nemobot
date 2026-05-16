@@ -1,4 +1,4 @@
-"""Unit tests for worker/render-worker-state.py."""
+"""Unit tests for arm-worker/render-worker-state.py."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ class RenderWorkerStateTest(unittest.TestCase):
     """Covers worker-state rendering and model inheritance logic."""
 
     def test_provider_and_model_supports_builtin_anthropic_provider(self) -> None:
-        module = load_script("worker/render-worker-state.py")
+        module = load_script("arm-worker/render-worker-state.py")
         source = {
             "models": {
                 "providers": {
@@ -35,7 +35,7 @@ class RenderWorkerStateTest(unittest.TestCase):
         self.assertEqual(model["id"], "claude-opus-4-7")
 
     def test_main_renders_worker_state_and_disables_slack(self) -> None:
-        module = load_script("worker/render-worker-state.py")
+        module = load_script("arm-worker/render-worker-state.py")
 
         with tempfile.TemporaryDirectory() as temp_dir:
             frontdoor_path = Path(temp_dir) / "frontdoor.json"

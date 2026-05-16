@@ -75,7 +75,7 @@ start_cluster() {
   ensure_port_free "${MGMT_PORT}" "${CLUSTER_CONTAINER}"
   ensure_port_free "${GATEWAY_HOST_PORT}" "${CLUSTER_CONTAINER}"
 
-  docker rm -f openclaw-x86-lab-worker >/dev/null 2>&1 || true
+  docker rm -f openclaw-x86-worker >/dev/null 2>&1 || true
   if [[ "${RESET_CLUSTER_STATE}" == "1" ]]; then
     docker rm -f "${CLUSTER_CONTAINER}" >/dev/null 2>&1 || true
     docker volume rm -f "${CLUSTER_VOLUME}" >/dev/null 2>&1 || true
@@ -511,7 +511,7 @@ import_image() {
 
 publish_lab_control_image() {
   DOCKER_BUILDKIT=0 docker build -t "${LAB_CONTROL_IMAGE_TAG}" -f "${ROOT}/Dockerfile.lab-control" "${ROOT}"
-  import_image "${LAB_CONTROL_IMAGE_TAG}" "openshell-x86-lab-control"
+  import_image "${LAB_CONTROL_IMAGE_TAG}" "openshell-x86-worker-control"
 }
 
 publish_vm_runner_image() {

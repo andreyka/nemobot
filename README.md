@@ -100,25 +100,25 @@ If you only want to deploy the frontdoor sandbox and host-side containers:
   Safe rebuild/update wrapper that preserves durable memory by default and can also update the x86 worker host
 - `install.sh`
   Frontdoor installer for `nemobot` plus host-side Docker containers
-- `worker/install.sh`
+- `arm-worker/install.sh`
   Worker installer for `nemoworker`
-- `x86-lab/install-remote.sh`
+- `x86-worker/install-remote.sh`
   Deploys the x86 build/validation worker as a dedicated OpenShell cluster plus host-side helper containers on a separate host
-- `x86-lab/install-bridge.sh`
+- `x86-worker/install-bridge.sh`
   Deploys the frontdoor-host bridge that proxies requests to the x86 worker gateway
-- `x86-lab/lab-control.py`
+- `x86-worker/lab-control.py`
   Bounded x86 lab-control service for disposable cluster-local jobs
-- `worker/prepare-state.sh`
+- `arm-worker/prepare-state.sh`
   Builds worker-local state from the worker template plus shared frontdoor model/search settings
-- `worker/render-worker-state.py`
-  Renders `worker/state/openclaw.json` without inheriting frontdoor Slack/env secrets
+- `arm-worker/render-worker-state.py`
+  Renders `arm-worker/state/openclaw.json` without inheriting frontdoor Slack/env secrets
 - `bridge/install.sh`
   In-cluster bridge deployment
 - `browser/`
   Hardened host-side Docker containers for browser, NVIDIA/Perplexity proxies, Postgres, and memory service
 - `templates/`
   Frontdoor config and prompt templates
-- `worker/templates/`
+- `arm-worker/templates/`
   Worker config and prompt templates
 - `docs/ARCHITECTURE.md`
   Deployment shape, trust boundaries, and OpenShell primitives

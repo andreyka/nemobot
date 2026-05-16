@@ -69,7 +69,7 @@ worker_args=()
 if (( INIT_ONLY )); then
   "${ROOT}/install.sh" --init-state
   if (( SKIP_WORKER == 0 )); then
-    "${ROOT}/worker/install.sh" --init-state
+    "${ROOT}/arm-worker/install.sh" --init-state
   fi
   exit 0
 fi
@@ -87,7 +87,7 @@ if (( SKIP_WORKER == 0 )); then
   if (( REFRESH_LIVE_WORKER )); then
     worker_args+=(--refresh-live-config)
   fi
-  "${ROOT}/worker/install.sh" "${worker_args[@]}"
+  "${ROOT}/arm-worker/install.sh" "${worker_args[@]}"
 fi
 
 if (( SKIP_BRIDGE == 0 )) && (( SKIP_WORKER == 0 )); then
