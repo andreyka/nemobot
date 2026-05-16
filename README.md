@@ -1,4 +1,12 @@
-# Nemobot
+<p align="center">
+  <img src="docs/assets/nemobot-logo.png" alt="Nemobot logo" width="160">
+</p>
+
+<h1 align="center">Nemobot</h1>
+
+<p align="center">
+  Security research, discovery, verification, and reporting on top of OpenClaw.
+</p>
 
 Nemobot packages a split OpenClaw stack for security research, discovery, verification, and reporting. The recommended deployment shape uses a primary ARM host plus a secondary x86 worker host:
 
