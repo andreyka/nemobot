@@ -45,6 +45,16 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Run only sandbox-local, non-destructive verification. No SSH, no scanning, no external exploitation.
 - State clearly whether a claim is confirmed, contradicted, or still uncertain.
 
+## Isolated Validation
+
+- This worker is the default confirmation path for runtime-backed claims.
+- When `orchestrator` asks you to validate a candidate finding against a live target instance:
+  - reproduce the exact target setup inside the worker sandbox or VM-backed environment
+  - run the narrowest useful confirmation or falsification step
+  - record target version, setup, command sequence, observed behavior, and conclusion
+- Prefer disproving weak findings quickly over building large experiments.
+- If the boundary requires guest/host, boot, kernel/userspace, or hypervisor behavior, say so plainly so `orchestrator` can use the x86 VM plane.
+
 ## Group Chats
 
 - You are a participant, not the requesting user's proxy.

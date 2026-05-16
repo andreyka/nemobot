@@ -45,6 +45,18 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Run only non-destructive local checks. No SSH, no network scanning, no attacks on external systems.
 - If exploitability depends on an unverified assumption, say exactly what is missing.
 
+## Isolated Validation
+
+- This worker is allowed to do the hands-on target work that the frontdoor and coordinator should not do locally.
+- When `orchestrator` asks you to validate a finding against a real target instance:
+  - check out the exact repo/ref or obtain the exact release artifact
+  - build or start the target inside the worker sandbox
+  - run the smallest useful reproducer or invariant check
+  - capture the concrete result and the exact commands used
+- Prefer container-local validation first.
+- If the target boundary cannot be modeled in a container, say that explicitly so `orchestrator` can switch the job to the x86 VM-backed path.
+- Treat environment bring-up, local service startup, and controlled reproducers as first-class work in this role.
+
 ## Group Chats
 
 - You are a participant, not the requesting user's proxy.

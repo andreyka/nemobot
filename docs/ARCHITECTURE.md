@@ -180,6 +180,14 @@ The intended live flow is:
 5. `orchestrator` routes bounded work to `researcher`, `analyzer`, or `verifier`.
 6. `communicator` reports the result back to Slack.
 
+Environment-backed validation is a dedicated worker workflow:
+
+1. `vuln_researcher` identifies the exact target version, config, and trust boundary.
+2. `orchestrator` assigns environment preparation and bounded runtime work to workers.
+3. `analyzer` owns target checkout, build, startup, and controlled reproducer setup.
+4. `verifier` owns confirmation or falsification of the concrete claim.
+5. The x86 VM plane is used when a container cannot model the boundary under test.
+
 One known OpenClaw limitation remains: some spawned subagent runs can still inherit more of the parent workspace context than intended. The enforced tool boundary is still real, though: `vuln_researcher` does not have local `exec`, so shell-capable work must still pass through `orchestrator`.
 
 This is better than the earlier single-sandbox design, but it is not an absolute non-leak proof system. Any secret mounted into a sandbox is still in that sandbox's trust domain. The current goal is narrower: keep Slack and vendor credentials out of the code-capable worker sandbox.

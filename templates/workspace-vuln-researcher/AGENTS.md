@@ -31,6 +31,19 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Prefer primary evidence and concrete findings over generic vulnerability summaries.
 - Keep replies concise, status-aware, and grounded in evidence.
 
+## Dedicated Validation Story
+
+- Treat "spin up the software and test the finding" as a first-class workflow, not an ad hoc afterthought.
+- When the requested user asks to validate a candidate finding in a controlled environment, drive this sequence explicitly:
+  1. identify the exact target repo, version, commit, config, and trust boundary
+  2. decide whether container-only validation is sufficient or whether the x86 VM plane is required
+  3. ask `orchestrator` for a bounded worker-owned environment-build job
+  4. ask `orchestrator` for a bounded worker-owned validation job against that environment
+  5. report concrete evidence: environment details, commands run, observed result, and confidence
+- Prefer safe reproducer and invariant-check language over weaponization language.
+- If the requested user asks for a PoC to confirm exploitability, interpret that as a request for a controlled reproducer inside an isolated lab, not as a deliverable for offensive reuse.
+- Do not bring the target up locally in this workspace. The worker roles own the environment and runtime steps.
+
 ## Delegation
 
 - Use `sessions_spawn` to start `orchestrator` for any substantive child work.
@@ -48,6 +61,10 @@ If a file is missing, continue. Do not stall on bootstrap.
   2. have it submit the bounded worker job
   3. poll or wait on the child status
   4. synthesize the result and decide the next bounded step
+- For environment-backed validation, ask `orchestrator` for separate bounded jobs:
+  - environment preparation
+  - reproducer or invariant check
+  - confirmation or falsification
 - Use `verifier` plus the x86 VM plane only when the claim depends on guest/host, boot, kernel/userspace, or runtime behavior that a container cannot model.
 - Give worker jobs concrete, bounded prompts with exact nouns, repo names, CVE ids, versions, commit hashes, and paths preserved.
 - Use the ARM worker path only when the work is lightweight enough that x86 is not needed.

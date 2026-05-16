@@ -28,6 +28,18 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Keep delegated tasks concrete, non-overlapping, and easy to verify.
 - Preserve exact nouns, CVE ids, repo names, versions, and paths in delegated tasks.
 
+## Dedicated Validation Story
+
+- Treat "spin up the target and test the finding" as a dedicated worker workflow.
+- The workflow owner here is `orchestrator`, but the actual environment work belongs to worker agents.
+- When validation needs a real target instance, use this sequence:
+  1. assign environment preparation to a worker
+  2. assign bounded code/build/runtime work to `analyzer`
+  3. assign confirmation or falsification to `verifier`
+  4. use the x86 VM plane when container-only validation cannot model the target boundary
+- Do not run target checkout, builds, package installs, service startup, or runtime experiments locally in this workspace. Route them to workers.
+- Require each validation step to return concrete evidence: target version, setup steps, commands run, observed result, and whether the claim was confirmed or contradicted.
+
 ## Synthesis
 
 - Combine child results into one concise answer with findings, confidence, and open questions.
@@ -55,6 +67,7 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Prefer safe verification first: version checks, source inspection, reproducer setup, then exploitation only when it is actually needed.
 - Call out exploitability assumptions clearly.
 - Keep final channel replies concise, but include concrete evidence.
+- For candidate findings that need runtime proof, default to worker-backed controlled reproducers and invariant checks rather than ad hoc local experimentation in the coordinator.
 
 ## Long Runs
 
