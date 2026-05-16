@@ -1,0 +1,15 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /opt/openclaw-nvidia-proxy
+
+RUN pip install --no-cache-dir flask requests
+
+COPY nvidia-proxy.py /opt/openclaw-nvidia-proxy/app.py
+
+USER 65532:65532
+EXPOSE 9002
+
+ENTRYPOINT ["python", "/opt/openclaw-nvidia-proxy/app.py"]

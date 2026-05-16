@@ -1,0 +1,19 @@
+FROM debian:12-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    cloud-image-utils \
+    curl \
+    genisoimage \
+    python3 \
+    qemu-system-x86 \
+    qemu-utils \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/openclaw
+
+COPY vm-runner.py /opt/openclaw/vm-runner.py
+
+ENTRYPOINT ["python3", "/opt/openclaw/vm-runner.py"]

@@ -1,0 +1,12 @@
+FROM python:3.12-slim
+
+RUN pip install --no-cache-dir "psycopg[binary]==3.2.1"
+
+WORKDIR /opt/openclaw-memory-service
+
+COPY memory-service.py /opt/openclaw-memory-service/app.py
+
+ENV PYTHONUNBUFFERED=1
+ENV MEMORY_PORT=9004
+
+ENTRYPOINT ["python", "/opt/openclaw-memory-service/app.py"]

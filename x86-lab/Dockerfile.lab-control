@@ -1,0 +1,14 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /opt/openclaw-lab-control
+
+RUN pip install --no-cache-dir kubernetes==31.0.0
+
+COPY lab-control.py /opt/openclaw-lab-control/app.py
+
+USER 65532:65532
+
+ENTRYPOINT ["python3", "/opt/openclaw-lab-control/app.py"]

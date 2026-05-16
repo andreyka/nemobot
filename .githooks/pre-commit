@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "${repo_root}"
+
+mapfile -d '' staged_files < <(git diff --cached --name-only --diff-filter=ACM -z)
+if [[ "${#staged_files[@]}" -eq 0 ]]; then
+  exit 0
+fi
+
+private_ip_re='(^|[^0-9])(10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]{1,3}\.[0-9]{1,3})([^0-9]|$)'
+local_path_re='(/home/[A-Za-z0-9._-]+/)'
+token_re='(xoxb-[A-Za-z0-9-]{20,}|xapp-[A-Za-z0-9-]{20,}|pplx-[A-Za-z0-9]{20,}|nvapi-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})'
+anthropic_token_re='(sk-ant-[A-Za-z0-9_-]{20,})'
+email_re='[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
+secret_assign_re='(POSTGRES_PASSWORD=[^$[:space:]][^[:space:]]{8,}|WORKER_GATEWAY_TOKEN=[A-Fa-f0-9]{20,}|GATEWAY_TOKEN=[A-Fa-f0-9]{20,})'
+
+failed=0
+for path in "${staged_files[@]}"; do
+  [[ -f "${path}" ]] || continue
+  if [[ "${path}" == .githooks/* ]]; then
+    continue
+  fi
+  content="$(git show ":${path}")"
+  if printf '%s' "${content}" | grep -E -n "${private_ip_re}" | grep -Ev '127\.0\.0\.1' >/tmp/.pre-commit-ip.$$ 2>/dev/null; then
+    echo "pre-commit: private IP detected in staged file: ${path}" >&2
+    cat /tmp/.pre-commit-ip.$$ >&2
+    failed=1
+  fi
+  if printf '%s' "${content}" | grep -E -n "${local_path_re}" | grep -Ev '/home/sandbox/' >/tmp/.pre-commit-path.$$ 2>/dev/null; then
+    echo "pre-commit: local workstation path detected in staged file: ${path}" >&2
+    cat /tmp/.pre-commit-path.$$ >&2
+    failed=1
+  fi
+  if printf '%s' "${content}" | grep -E -n "${token_re}" >/tmp/.pre-commit-token.$$ 2>/dev/null; then
+    echo "pre-commit: token-like secret detected in staged file: ${path}" >&2
+    cat /tmp/.pre-commit-token.$$ >&2
+    failed=1
+  fi
+  if printf '%s' "${content}" | grep -E -n "${anthropic_token_re}" >/tmp/.pre-commit-anthropic.$$ 2>/dev/null; then
+    echo "pre-commit: anthropic token detected in staged file: ${path}" >&2
+    cat /tmp/.pre-commit-anthropic.$$ >&2
+    failed=1
+  fi
+  if printf '%s' "${content}" | grep -E -n "${email_re}" >/tmp/.pre-commit-email.$$ 2>/dev/null; then
+    echo "pre-commit: email address detected in staged file: ${path}" >&2
+    cat /tmp/.pre-commit-email.$$ >&2
+    failed=1
+  fi
+  if printf '%s' "${content}" | grep -E -n "${secret_assign_re}" >/tmp/.pre-commit-secret.$$ 2>/dev/null; then
+    echo "pre-commit: secret assignment detected in staged file: ${path}" >&2
+    cat /tmp/.pre-commit-secret.$$ >&2
+    failed=1
+  fi
+done
+
+rm -f /tmp/.pre-commit-ip.$$ /tmp/.pre-commit-path.$$ /tmp/.pre-commit-token.$$ /tmp/.pre-commit-anthropic.$$ /tmp/.pre-commit-email.$$ /tmp/.pre-commit-secret.$$
+
+if [[ "${failed}" -ne 0 ]]; then
+  echo "Commit blocked. Remove secrets, emails, private IPs, and local workstation paths from staged content." >&2
+  exit 1
+fi

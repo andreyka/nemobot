@@ -1,0 +1,57 @@
+FROM node:22-bookworm-slim
+
+ARG OPENCLAW_RELEASE
+ARG CLAUDE_CODE_PACKAGE=@anthropic-ai/claude-code
+
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    afl++ \
+    binutils \
+    build-essential \
+    clang \
+    cmake \
+    curl \
+    file \
+    gdb \
+    git \
+    golang-go \
+    iptables \
+    iproute2 \
+    jq \
+    ninja-build \
+    openjdk-17-jdk-headless \
+    openssh-client \
+    patchelf \
+    pkg-config \
+    python3-pip \
+    python3-venv \
+    rustc \
+    cargo \
+    strace \
+    unzip \
+    wget \
+    zip \
+ && npm install -g "openclaw@${OPENCLAW_RELEASE}" "${CLAUDE_CODE_PACKAGE}" \
+ && pip3 install --break-system-packages --no-cache-dir semgrep \
+ && npm cache clean --force \
+ && rm -rf /var/lib/apt/lists/*
+
+ENV NEMOBOT_OPENCLAW_RELEASE="${OPENCLAW_RELEASE}"
+
+RUN getent group sandbox >/dev/null || groupadd sandbox \
+ && id -u sandbox >/dev/null 2>&1 || useradd --gid sandbox --create-home --shell /bin/bash sandbox \
+ && install -d -m 0755 -o sandbox -g sandbox /sandbox
+
+COPY openclaw-entrypoint.sh /usr/local/bin/openclaw-entrypoint
+COPY openclaw-bridge.py /usr/local/bin/openclaw-bridge
+COPY openclaw-memory.py /usr/local/bin/openclaw-memory
+COPY openclaw-anthropic-auth.py /usr/local/bin/openclaw-anthropic-auth
+COPY claude-wrapper.sh /usr/local/bin/claude-wrapper
+RUN CLAUDE_TARGET="$(readlink -f /usr/local/bin/claude)" \
+ && mv "${CLAUDE_TARGET}" "${CLAUDE_TARGET%.exe}.real.exe" \
+ && cp /usr/local/bin/claude-wrapper "${CLAUDE_TARGET}" \
+ && chmod 0755 /usr/local/bin/openclaw-entrypoint /usr/local/bin/openclaw-bridge /usr/local/bin/openclaw-memory /usr/local/bin/openclaw-anthropic-auth /usr/local/bin/claude-wrapper "${CLAUDE_TARGET}" "${CLAUDE_TARGET%.exe}.real.exe"
+
+WORKDIR /sandbox

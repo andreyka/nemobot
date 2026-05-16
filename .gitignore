@@ -1,0 +1,14 @@
+state/
+backups/
+__pycache__/
+*.pyc
+.DS_Store
+bridge/state/
+worker/state/
+worker/backups/
+worker/__pycache__/
+x86-lab/state/
+x86-lab/backups/
+x86-lab/__pycache__/
+browser/__pycache__/
+.githooks/.cache/

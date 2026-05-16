@@ -1,0 +1,361 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.5.12"
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "__REPLACE_PROVIDER_ID__": {
+        "baseUrl": "__REPLACE_MODEL_API_BASE_URL__",
+        "apiKey": "__REPLACE_OR_USE_DEFAULT_API_KEY__",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "__REPLACE_MODEL_API_MODEL_ID__",
+            "name": "__REPLACE_MODEL_API_MODEL_NAME__",
+            "reasoning": false,
+            "input": [
+              "text"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 1048576,
+            "maxTokens": 4096
+          }
+        ]
+      },
+      "custom-host-openshell-internal-9002": {
+        "baseUrl": "http://host.openshell.internal:9002/v1",
+        "apiKey": "openshell-managed",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "nvidia/nemotron-3-super-120b-a12b",
+            "name": "nvidia/nemotron-3-super-120b-a12b",
+            "reasoning": false,
+            "input": [
+              "text"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 131072,
+            "maxTokens": 4096
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "custom-host-openshell-internal-9002/nvidia/nemotron-3-super-120b-a12b"
+      },
+      "models": {
+        "__REPLACE_PROVIDER_ID__/__REPLACE_MODEL_API_MODEL_ID__": {},
+        "custom-host-openshell-internal-9002/nvidia/nemotron-3-super-120b-a12b": {}
+      },
+      "workspace": "/root/.openclaw/workspace",
+      "compaction": {
+        "mode": "safeguard",
+        "model": "custom-host-openshell-internal-9002/nvidia/nemotron-3-super-120b-a12b"
+      },
+      "subagents": {
+        "model": "custom-host-openshell-internal-9002/nvidia/nemotron-3-super-120b-a12b",
+        "maxSpawnDepth": 2,
+        "maxChildrenPerAgent": 2,
+        "maxConcurrent": 2,
+        "runTimeoutSeconds": 1800,
+        "archiveAfterMinutes": 30
+      },
+      "timeoutSeconds": 2400
+    },
+    "list": [
+      {
+        "id": "main",
+        "default": false,
+        "workspace": "/root/.openclaw/workspace",
+        "model": {
+          "primary": "custom-host-openshell-internal-9002/nvidia/nemotron-3-super-120b-a12b"
+        },
+        "subagents": {
+          "allowAgents": [
+            "general_assistant",
+            "vuln_researcher",
+            "orchestrator"
+          ]
+        },
+        "tools": {
+          "profile": "coding",
+          "allow": [
+            "sessions_spawn",
+            "sessions_list",
+            "sessions_history",
+            "sessions_send",
+            "session_status",
+            "memory_search",
+            "memory_get"
+          ],
+          "loopDetection": {
+            "enabled": true
+          }
+        }
+      },
+      {
+        "id": "communicator",
+        "default": true,
+        "workspace": "/root/.openclaw/workspace-communicator",
+        "model": {
+          "primary": "custom-host-openshell-internal-9002/nvidia/nemotron-3-super-120b-a12b"
+        },
+        "subagents": {
+          "allowAgents": [
+            "general_assistant",
+            "vuln_researcher",
+            "orchestrator"
+          ]
+        },
+        "tools": {
+          "profile": "coding",
+          "allow": [
+            "sessions_spawn",
+            "sessions_list",
+            "sessions_history",
+            "sessions_send",
+            "session_status",
+            "memory_search",
+            "memory_get"
+          ],
+          "loopDetection": {
+            "enabled": true
+          }
+        }
+      },
+      {
+        "id": "general_assistant",
+        "workspace": "/root/.openclaw/workspace-general-assistant",
+        "model": {
+          "primary": "custom-host-openshell-internal-9002/nvidia/nemotron-3-super-120b-a12b"
+        },
+        "subagents": {
+          "allowAgents": [
+            "orchestrator"
+          ]
+        },
+        "tools": {
+          "profile": "coding",
+          "allow": [
+            "sessions_spawn",
+            "sessions_list",
+            "sessions_history",
+            "sessions_send",
+            "session_status",
+            "memory_search",
+            "memory_get",
+            "web_search",
+            "web_fetch"
+          ],
+          "loopDetection": {
+            "enabled": true
+          }
+        }
+      },
+    {
+      "id": "vuln_researcher",
+      "workspace": "/root/.openclaw/workspace-vuln-researcher",
+      "model": {
+        "primary": "custom-host-openshell-internal-9002/nvidia/nemotron-3-super-120b-a12b"
+      },
+      "subagents": {
+        "allowAgents": [
+          "orchestrator"
+        ]
+      },
+      "tools": {
+        "profile": "coding",
+        "allow": [
+          "sessions_spawn",
+          "sessions_send",
+          "session_status",
+          "sessions_list",
+          "sessions_history",
+          "memory_search",
+          "memory_get",
+          "web_search",
+          "web_fetch"
+        ],
+          "loopDetection": {
+            "enabled": true
+          }
+        }
+      },
+      {
+        "id": "orchestrator",
+        "workspace": "/root/.openclaw/workspace-orchestrator",
+        "model": {
+          "primary": "custom-host-openshell-internal-9002/nvidia/nemotron-3-super-120b-a12b"
+        },
+        "tools": {
+          "profile": "coding",
+          "allow": [
+            "exec",
+            "memory_search",
+            "memory_get",
+            "web_search",
+            "web_fetch"
+          ],
+          "loopDetection": {
+            "enabled": true
+          }
+        }
+      }
+    ]
+  },
+  "tools": {
+    "profile": "coding",
+    "web": {
+      "search": {
+        "enabled": false,
+        "provider": "perplexity",
+        "maxResults": 5,
+        "timeoutSeconds": 30,
+        "cacheTtlMinutes": 15
+      }
+    },
+    "loopDetection": {
+      "enabled": true
+    }
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true,
+    "ownerDisplay": "raw"
+  },
+  "session": {
+    "dmScope": "per-channel-peer",
+    "resetByType": {
+      "direct": {
+        "mode": "idle",
+        "idleMinutes": 240
+      },
+      "group": {
+        "mode": "idle",
+        "idleMinutes": 120
+      },
+      "thread": {
+        "mode": "idle",
+        "idleMinutes": 720
+      }
+    },
+    "threadBindings": {
+      "enabled": true,
+      "idleHours": 12,
+      "maxAgeHours": 72
+    }
+  },
+  "bindings": [
+    {
+      "agentId": "communicator",
+      "match": {
+        "channel": "slack",
+        "accountId": "default",
+        "teamId": "T0A9XL50R1N",
+        "peer": {
+          "kind": "channel",
+          "id": "C0AN2J6TWAY"
+        }
+      }
+    }
+  ],
+  "channels": {
+    "slack": {
+      "name": "slack-default",
+      "mode": "socket",
+      "webhookPath": "/slack/events",
+      "enabled": true,
+      "botToken": "__REPLACE_SLACK_BOT_TOKEN__",
+      "appToken": "__REPLACE_SLACK_APP_TOKEN__",
+      "userTokenReadOnly": true,
+      "requireMention": false,
+      "groupPolicy": "open",
+      "replyToMode": "first",
+      "replyToModeByChatType": {
+        "direct": "off",
+        "group": "off",
+        "channel": "first"
+      },
+      "thread": {
+        "historyScope": "thread",
+        "inheritParent": false,
+        "initialHistoryLimit": 10
+      },
+      "streaming": {
+        "mode": "off",
+        "nativeTransport": false
+      }
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "loopback",
+    "auth": {
+      "mode": "token",
+      "token": "__REPLACE_OR_GENERATE_GATEWAY_TOKEN__",
+      "rateLimit": {
+        "maxAttempts": 10,
+        "windowMs": 60000,
+        "lockoutMs": 300000
+      }
+    },
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    }
+  },
+  "plugins": {
+    "entries": {
+      "perplexity": {
+        "enabled": true,
+        "config": {
+          "webSearch": {
+            "baseUrl": "https://api.perplexity.ai",
+            "model": "sonar-pro"
+          }
+        }
+      },
+      "slack": {
+        "enabled": true
+      }
+    }
+  },
+  "browser": {
+    "enabled": true,
+    "defaultProfile": "container",
+    "evaluateEnabled": true,
+    "remoteCdpTimeoutMs": 5000,
+    "remoteCdpHandshakeTimeoutMs": 8000,
+    "ssrfPolicy": {
+      "dangerouslyAllowPrivateNetwork": false,
+      "allowedHostnames": [
+        "host.openshell.internal",
+        "openclaw-worker-bridge",
+        "openclaw-worker-bridge.openshell.svc.cluster.local"
+      ]
+    },
+    "profiles": {
+      "container": {
+        "cdpUrl": "http://host.openshell.internal:9223",
+        "color": "#D2691E"
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /opt/openclaw-anthropic-proxy
+
+RUN pip install --no-cache-dir flask requests
+
+COPY anthropic-proxy.py /opt/openclaw-anthropic-proxy/app.py
+
+USER 65532:65532
+EXPOSE 9005
+
+ENTRYPOINT ["python", "/opt/openclaw-anthropic-proxy/app.py"]

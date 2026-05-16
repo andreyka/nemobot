@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "defaults": {
+    "ask": "on-miss"
+  },
+  "agents": {
+    "orchestrator": {
+      "security": "allowlist",
+      "ask": "off",
+      "allowlist": [
+        {
+          "pattern": "/usr/local/bin/openclaw-bridge"
+        },
+        {
+          "pattern": "/usr/local/bin/openclaw-memory"
+        }
+      ]
+    }
+  }
+}
