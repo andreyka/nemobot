@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Import Anthropic auth material into an OpenClaw state directory."""
+
 import json
 import os
 import shutil
@@ -12,20 +14,31 @@ PROFILE_ID = "anthropic:manual"
 
 
 def log(message: str) -> None:
+    """Write a prefixed message to stderr."""
+
     print(f"[openclaw-anthropic-auth] {message}", file=sys.stderr)
 
 
 def normalize_shell_export_value(value: str | None) -> str:
+    """Trim common shell-quoted wrapper forms from env-file values."""
+
     value = (value or "").strip()
     shell_single_quote_wrapper = '\'"\'"\''
-    if value.startswith(shell_single_quote_wrapper) and value.endswith(shell_single_quote_wrapper):
+    if value.startswith(shell_single_quote_wrapper) and value.endswith(
+        shell_single_quote_wrapper
+    ):
         value = value[len(shell_single_quote_wrapper):-len(shell_single_quote_wrapper)]
-    if len(value) >= 2 and ((value[0] == "'" and value[-1] == "'") or (value[0] == '"' and value[-1] == '"')):
+    if len(value) >= 2 and (
+        (value[0] == "'" and value[-1] == "'")
+        or (value[0] == '"' and value[-1] == '"')
+    ):
         value = value[1:-1]
     return value
 
 
 def load_config() -> dict:
+    """Load the current OpenClaw config file if it exists."""
+
     if not CONFIG_PATH.exists():
         return {}
     try:
@@ -36,6 +49,8 @@ def load_config() -> dict:
 
 
 def anthropic_in_use(config: dict) -> bool:
+    """Return True when any agent primary model uses the Anthropic provider."""
+
     defaults_primary = (
         config.get("agents", {})
         .get("defaults", {})
@@ -52,6 +67,8 @@ def anthropic_in_use(config: dict) -> bool:
 
 
 def anthropic_auth_mode() -> str:
+    """Resolve the requested Anthropic auth mode from the environment."""
+
     mode = os.environ.get("ANTHROPIC_AUTH_MODE", "").strip()
     if mode:
         return mode
@@ -63,12 +80,16 @@ def anthropic_auth_mode() -> str:
 
 
 def save_json(path: Path, payload: dict) -> None:
+    """Save a JSON file with restrictive permissions."""
+
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2) + "\n")
     path.chmod(0o600)
 
 
 def resolve_agent_ids(config: dict) -> list[str]:
+    """Return every agent state directory that needs auth profiles."""
+
     agent_ids = {"main"}
     for agent in config.get("agents", {}).get("list", []):
         agent_id = str(agent.get("id", "")).strip()
@@ -78,6 +99,8 @@ def resolve_agent_ids(config: dict) -> list[str]:
 
 
 def upsert_auth_config(config: dict) -> bool:
+    """Ensure the Anthropic auth profile is enabled in the config document."""
+
     auth = config.setdefault("auth", {})
     profiles = auth.setdefault("profiles", {})
     order = auth.setdefault("order", {})
@@ -100,6 +123,8 @@ def upsert_auth_config(config: dict) -> bool:
 
 
 def write_auth_profiles(config: dict, token: str) -> None:
+    """Write the token-backed Anthropic profile for each agent state dir."""
+
     store = {
         "version": 1,
         "profiles": {
@@ -116,12 +141,16 @@ def write_auth_profiles(config: dict, token: str) -> None:
 
 
 def import_setup_token(config: dict, token: str) -> None:
+    """Persist a setup token into the local OpenClaw auth store."""
+
     if upsert_auth_config(config):
         save_json(CONFIG_PATH, config)
     write_auth_profiles(config, token)
 
 
 def main() -> int:
+    """Import Anthropic auth when the runtime is configured to use it."""
+
     config = load_config()
     if not anthropic_in_use(config):
         return 0
@@ -132,7 +161,10 @@ def main() -> int:
 
     if mode == "claude-cli":
         if not shutil.which("claude"):
-            log("Anthropic model is configured for claude-cli runtime, but `claude` is not installed in this image.")
+            log(
+                "Anthropic model is configured for claude-cli runtime, but "
+                "`claude` is not installed in this image."
+            )
             return 1
         return 0
 

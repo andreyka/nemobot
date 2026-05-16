@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Render the worker OpenClaw state from the frontdoor configuration."""
+
 import json
 import os
 import secrets
@@ -7,6 +9,8 @@ from pathlib import Path
 
 
 def replace_placeholders(node, mapping: dict[str, str]):
+    """Recursively replace placeholder strings in a JSON-like object."""
+
     if isinstance(node, str):
         for old, new in mapping.items():
             node = node.replace(old, new)
@@ -22,10 +26,14 @@ def replace_placeholders(node, mapping: dict[str, str]):
 
 
 def load_json(path: Path) -> dict:
+    """Load a JSON object from disk."""
+
     return json.loads(path.read_text())
 
 
 def prune_placeholders(node):
+    """Drop unresolved placeholder fields from a JSON-like object."""
+
     if isinstance(node, dict):
         cleaned = {}
         for key, value in node.items():
@@ -48,9 +56,18 @@ def prune_placeholders(node):
 
 
 def provider_and_model(source: dict) -> tuple[str, dict | None, dict]:
+    """Resolve the effective primary provider and model from frontdoor state."""
+
     providers = source.get("models", {}).get("providers", {})
     defaults_primary = source.get("agents", {}).get("defaults", {}).get("model", {}).get("primary")
-    builtin_provider_ids = {"anthropic", "openai", "openrouter", "google", "google-vertex", "anthropic-vertex"}
+    builtin_provider_ids = {
+        "anthropic",
+        "openai",
+        "openrouter",
+        "google",
+        "google-vertex",
+        "anthropic-vertex",
+    }
 
     if defaults_primary:
         provider_id, model_id = defaults_primary.split("/", 1)
@@ -86,7 +103,14 @@ def provider_and_model(source: dict) -> tuple[str, dict | None, dict]:
     return provider_id, provider, model
 
 
-def ensure_model(rendered: dict, primary: str, base_model: dict, fallback_name: str | None = None) -> str:
+def ensure_model(
+    rendered: dict,
+    primary: str,
+    base_model: dict,
+    fallback_name: str | None = None,
+) -> str:
+    """Ensure the referenced model exists under its provider definition."""
+
     provider_id, _, model_id = primary.partition("/")
     if not provider_id or not model_id:
         return primary
@@ -120,11 +144,17 @@ def ensure_model(rendered: dict, primary: str, base_model: dict, fallback_name: 
 
 
 def is_worker_config(existing: dict) -> bool:
+    """Return True when the current output file already looks like worker state."""
+
     agent_ids = {agent.get("id") for agent in existing.get("agents", {}).get("list", [])}
-    return {"researcher", "analyzer", "verifier"}.issubset(agent_ids) and not existing.get("channels", {}).get("slack", {}).get("enabled", False)
+    return {"researcher", "analyzer", "verifier"}.issubset(agent_ids) and not existing.get(
+        "channels", {}
+    ).get("slack", {}).get("enabled", False)
 
 
 def gateway_token(existing: dict) -> str:
+    """Preserve a worker gateway token when rerendering an existing worker state."""
+
     current = existing.get("gateway", {}).get("auth", {}).get("token")
     if current and "__REPLACE_" not in current and is_worker_config(existing):
         return current
@@ -132,8 +162,14 @@ def gateway_token(existing: dict) -> str:
 
 
 def main() -> int:
+    """Render the worker state file in place."""
+
     if len(sys.argv) != 4:
-        print("usage: render-worker-state.py <frontdoor-openclaw.json> <worker-template.json> <worker-openclaw.json>", file=sys.stderr)
+        print(
+            "usage: render-worker-state.py <frontdoor-openclaw.json> "
+            "<worker-template.json> <worker-openclaw.json>",
+            file=sys.stderr,
+        )
         return 2
 
     source_path = Path(sys.argv[1])
@@ -184,11 +220,15 @@ def main() -> int:
     source_compaction_model = source_defaults.get("compaction", {}).get("model")
     if source_compaction_model:
         defaults.setdefault("compaction", {})["model"] = source_compaction_model
-        defaults.setdefault("models", {})[source_compaction_model] = source_defaults.get("models", {}).get(source_compaction_model, {})
+        defaults.setdefault("models", {})[source_compaction_model] = source_defaults.get(
+            "models", {}
+        ).get(source_compaction_model, {})
     source_subagent_model = source_defaults.get("subagents", {}).get("model")
     if source_subagent_model:
         defaults.setdefault("subagents", {})["model"] = source_subagent_model
-        defaults.setdefault("models", {})[source_subagent_model] = source_defaults.get("models", {}).get(source_subagent_model, {})
+        defaults.setdefault("models", {})[source_subagent_model] = source_defaults.get(
+            "models", {}
+        ).get(source_subagent_model, {})
     source_cli_backends = source_defaults.get("cliBackends")
     if source_cli_backends:
         defaults["cliBackends"] = source_cli_backends

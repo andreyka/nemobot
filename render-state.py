@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Render the frontdoor OpenClaw state from local deployment inputs."""
+
 import json
 import os
 import secrets
@@ -8,16 +10,20 @@ from urllib.parse import urlparse
 
 
 def sanitize_provider_id(base_url: str) -> str:
+    """Build a stable provider identifier from a model API base URL."""
+
     parsed = urlparse(base_url)
     host = parsed.hostname or "custom-provider"
     port = parsed.port
     pieces = ["custom", host.replace(".", "-")]
     if port:
-      pieces.append(str(port))
+        pieces.append(str(port))
     return "-".join(pieces)
 
 
 def env(name: str, default: str | None = None) -> str | None:
+    """Return a non-empty environment variable value or the default."""
+
     value = os.environ.get(name)
     if value is None or value == "":
         return default
@@ -25,6 +31,8 @@ def env(name: str, default: str | None = None) -> str | None:
 
 
 def env_any(names: list[str], default: str | None = None) -> str | None:
+    """Return the first non-empty environment variable among the candidates."""
+
     for name in names:
         value = env(name)
         if value is not None:
@@ -33,18 +41,27 @@ def env_any(names: list[str], default: str | None = None) -> str | None:
 
 
 def normalize_shell_export_value(value: str | None) -> str | None:
+    """Trim common shell-quoted wrapper forms from env-file values."""
+
     if value is None:
         return None
     value = value.strip()
     shell_single_quote_wrapper = '\'"\'"\''
-    if value.startswith(shell_single_quote_wrapper) and value.endswith(shell_single_quote_wrapper):
+    if value.startswith(shell_single_quote_wrapper) and value.endswith(
+        shell_single_quote_wrapper
+    ):
         value = value[len(shell_single_quote_wrapper):-len(shell_single_quote_wrapper)]
-    if len(value) >= 2 and ((value[0] == "'" and value[-1] == "'") or (value[0] == '"' and value[-1] == '"')):
+    if len(value) >= 2 and (
+        (value[0] == "'" and value[-1] == "'")
+        or (value[0] == '"' and value[-1] == '"')
+    ):
         value = value[1:-1]
     return value
 
 
 def load_env_file(path: Path) -> dict[str, str]:
+    """Load a simple KEY=VALUE env file into a dictionary."""
+
     data: dict[str, str] = {}
     if not path.exists():
         return data
@@ -58,11 +75,15 @@ def load_env_file(path: Path) -> dict[str, str]:
 
 
 def write_env_file(path: Path, pairs: dict[str, str]) -> None:
+    """Persist environment variables in a deterministic order."""
+
     path.write_text("".join(f"{key}={value}\n" for key, value in sorted(pairs.items())))
     path.chmod(0o600)
 
 
 def needs_secret_migration(value: str | None) -> bool:
+    """Return True when an inline secret should be moved into local state."""
+
     if not value:
         return False
     if value.startswith("${"):
@@ -75,6 +96,8 @@ def needs_secret_migration(value: str | None) -> bool:
 
 
 def replace_placeholders(node, mapping: dict[str, str]):
+    """Recursively replace placeholder strings in a JSON-like object."""
+
     if isinstance(node, str):
         for old, new in mapping.items():
             node = node.replace(old, new)
@@ -91,6 +114,8 @@ def replace_placeholders(node, mapping: dict[str, str]):
 
 
 def prune_placeholders(node):
+    """Drop unresolved placeholder fields from a JSON-like object."""
+
     if isinstance(node, dict):
         cleaned: dict = {}
         for key, value in node.items():
@@ -113,6 +138,8 @@ def prune_placeholders(node):
 
 
 def main() -> int:
+    """Render the state file in place and write any sidecar auth/env files."""
+
     if len(sys.argv) != 2:
         print("usage: render-state.py <state-openclaw.json>", file=sys.stderr)
         return 2
@@ -158,9 +185,13 @@ def main() -> int:
     perplexity_model = env("PERPLEXITY_MODEL", "sonar-pro")
     nvidia_api_key = env("NVIDIA_API_KEY")
     if not anthropic_api_key:
-        anthropic_api_key = model_auth_env.get("ANTHROPIC_API_KEY") or anthropic_legacy_env.get("ANTHROPIC_API_KEY")
+        anthropic_api_key = model_auth_env.get("ANTHROPIC_API_KEY") or anthropic_legacy_env.get(
+            "ANTHROPIC_API_KEY"
+        )
     if not anthropic_auth_token:
-        anthropic_auth_token = model_auth_env.get("ANTHROPIC_AUTH_TOKEN") or anthropic_legacy_env.get("ANTHROPIC_AUTH_TOKEN")
+        anthropic_auth_token = model_auth_env.get(
+            "ANTHROPIC_AUTH_TOKEN"
+        ) or anthropic_legacy_env.get("ANTHROPIC_AUTH_TOKEN")
     if not anthropic_auth_mode:
         anthropic_auth_mode = model_auth_env.get("ANTHROPIC_AUTH_MODE")
     if not anthropic_model:
@@ -205,7 +236,9 @@ def main() -> int:
         defaults.setdefault("model", {})["primary"] = f"anthropic/{anthropic_model}"
         defaults.setdefault("models", {})[f"anthropic/{anthropic_model}"] = {}
         if anthropic_auth_mode == "claude-cli":
-            defaults["models"][f"anthropic/{anthropic_model}"]["agentRuntime"] = {"id": "claude-cli"}
+            defaults["models"][f"anthropic/{anthropic_model}"]["agentRuntime"] = {
+                "id": "claude-cli"
+            }
         defaults.setdefault("compaction", {})["model"] = f"anthropic/{anthropic_model}"
         defaults.setdefault("subagents", {})["model"] = f"anthropic/{anthropic_model}"
         for agent in obj.setdefault("agents", {}).get("list", []):
@@ -214,7 +247,9 @@ def main() -> int:
             frontdoor_primary = f"anthropic/{frontdoor_model}"
             defaults.setdefault("models", {})[frontdoor_primary] = {}
             if anthropic_auth_mode == "claude-cli":
-                defaults["models"][frontdoor_primary]["agentRuntime"] = {"id": "claude-cli"}
+                defaults["models"][frontdoor_primary]["agentRuntime"] = {
+                    "id": "claude-cli"
+                }
             for agent in obj.setdefault("agents", {}).get("list", []):
                 if agent.get("id") in {"communicator", "general_assistant"}:
                     agent.setdefault("model", {})["primary"] = frontdoor_primary
@@ -347,7 +382,10 @@ def main() -> int:
     if legacy_proxy_env_path.exists():
         legacy = load_env_file(legacy_proxy_env_path)
         if "NVIDIA_API_KEY" in legacy and not (state_dir / "nvidia-proxy.env").exists():
-            write_env_file(state_dir / "nvidia-proxy.env", {"NVIDIA_API_KEY": legacy["NVIDIA_API_KEY"]})
+            write_env_file(
+                state_dir / "nvidia-proxy.env",
+                {"NVIDIA_API_KEY": legacy["NVIDIA_API_KEY"]},
+            )
         legacy_proxy_env_path.unlink()
 
     tools = obj.setdefault("tools", {})
