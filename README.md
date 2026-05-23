@@ -61,6 +61,7 @@ export MODEL_CONTEXT_WINDOW=400000
 export MODEL_MAX_TOKENS=32000
 export SLACK_BOT_TOKEN='<set-in-local-state>'
 export SLACK_APP_TOKEN='<set-in-local-state>'
+export SLACK_CHANNEL_REPLY_TO_MODE=all
 export PERPLEXITY_API_KEY='<set-in-local-state>'
 export PERPLEXITY_MODEL=sonar-pro
 export TIMEOUT_SECONDS=2400
@@ -115,6 +116,7 @@ export ANTHROPIC_MODEL=claude-opus-4-7
 export WORKER_CODE_MODEL_ID=claude-opus-4-7
 export SLACK_BOT_TOKEN='<set-in-local-state>'
 export SLACK_APP_TOKEN='<set-in-local-state>'
+export SLACK_CHANNEL_REPLY_TO_MODE=all
 ./stack-install.sh
 ```
 

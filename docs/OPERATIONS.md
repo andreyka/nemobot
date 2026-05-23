@@ -405,6 +405,21 @@ docker exec openshell-cluster-nemobot kubectl exec -n openshell nemobot -- \
 - confirm the Slack account is `running: true`
 - confirm the frontdoor config still contains env references for the Slack tokens
 
+### Slack posts the acknowledgement but not the final result
+
+Check the frontdoor Slack reply policy:
+
+```bash
+docker exec openshell-cluster-nemobot kubectl exec -n openshell nemobot -- \
+  python3 -c 'import json; print(json.load(open("/root/.openclaw/openclaw.json"))["channels"]["slack"]["replyToModeByChatType"])'
+```
+
+For public channels, `channel` must be `all` so a long-running research thread
+can post both the initial acknowledgement and the final report. The installer
+migrates old `channel: "first"` state to `channel: "all"` automatically. If you
+need a different policy, set `SLACK_CHANNEL_REPLY_TO_MODE` to one of `off`,
+`first`, `all`, or `batched` before rerunning `./stack-install.sh`.
+
 ### Worker comes up but shows a Slack section in config
 
 That can happen because `openclaw doctor --fix` backfills default channel shape. The important check is still:

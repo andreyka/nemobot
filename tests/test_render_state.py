@@ -315,6 +315,71 @@ class RenderStateTest(unittest.TestCase):
                 self.assertEqual(agent["model"]["primary"], "openai-codex/gpt-5.5")
             self.assertFalse((Path(temp_dir) / "model-auth.env").exists())
 
+    def test_main_migrates_slack_channel_reply_mode_to_all(self) -> None:
+        module = load_script("render-state.py")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "openclaw.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "channels": {
+                            "slack": {
+                                "replyToMode": "first",
+                                "replyToModeByChatType": {
+                                    "direct": "off",
+                                    "group": "off",
+                                    "channel": "first",
+                                },
+                            }
+                        },
+                        "agents": {"defaults": {"model": {"primary": "test/model"}}},
+                        "gateway": {"auth": {"token": "test-token"}},
+                    }
+                )
+            )
+
+            with mock.patch.dict(os.environ, {}, clear=True):
+                with mock.patch("sys.argv", ["render-state.py", str(state_path)]):
+                    self.assertEqual(module.main(), 0)
+
+            slack = json.loads(state_path.read_text())["channels"]["slack"]
+            self.assertEqual(slack["replyToMode"], "all")
+            self.assertEqual(slack["replyToModeByChatType"]["channel"], "all")
+            self.assertEqual(slack["replyToModeByChatType"]["direct"], "off")
+            self.assertEqual(slack["replyToModeByChatType"]["group"], "off")
+
+    def test_main_respects_slack_reply_mode_overrides(self) -> None:
+        module = load_script("render-state.py")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "openclaw.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "channels": {"slack": {"replyToMode": "all"}},
+                        "agents": {"defaults": {"model": {"primary": "test/model"}}},
+                        "gateway": {"auth": {"token": "test-token"}},
+                    }
+                )
+            )
+
+            env_updates = {
+                "SLACK_REPLY_TO_MODE": "batched",
+                "SLACK_CHANNEL_REPLY_TO_MODE": "batched",
+                "SLACK_DIRECT_REPLY_TO_MODE": "all",
+                "SLACK_GROUP_REPLY_TO_MODE": "first",
+            }
+            with mock.patch.dict(os.environ, env_updates, clear=True):
+                with mock.patch("sys.argv", ["render-state.py", str(state_path)]):
+                    self.assertEqual(module.main(), 0)
+
+            slack = json.loads(state_path.read_text())["channels"]["slack"]
+            self.assertEqual(slack["replyToMode"], "batched")
+            self.assertEqual(slack["replyToModeByChatType"]["channel"], "batched")
+            self.assertEqual(slack["replyToModeByChatType"]["direct"], "all")
+            self.assertEqual(slack["replyToModeByChatType"]["group"], "first")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -286,11 +286,11 @@
       "userTokenReadOnly": true,
       "requireMention": false,
       "groupPolicy": "open",
-      "replyToMode": "first",
+      "replyToMode": "all",
       "replyToModeByChatType": {
         "direct": "off",
         "group": "off",
-        "channel": "first"
+        "channel": "all"
       },
       "thread": {
         "historyScope": "thread",

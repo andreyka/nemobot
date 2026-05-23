@@ -21,6 +21,7 @@ VALID_MODEL_BACKENDS = {
     "codex-oauth",
     "custom-openai",
 }
+VALID_SLACK_REPLY_MODES = {"off", "first", "all", "batched"}
 MODEL_BACKEND_ALIASES = {
     "openai": "codex-api",
     "openai-api": "codex-api",
@@ -71,6 +72,18 @@ def normalize_model_backend(value: str | None) -> str:
     return backend
 
 
+def normalize_slack_reply_mode(value: str | None, name: str) -> str | None:
+    """Return a validated Slack reply mode from an optional environment value."""
+
+    if value is None:
+        return None
+    mode = value.strip().lower()
+    if mode not in VALID_SLACK_REPLY_MODES:
+        valid = ", ".join(sorted(VALID_SLACK_REPLY_MODES))
+        raise ValueError(f"invalid {name}={value!r}; expected one of: {valid}")
+    return mode
+
+
 def model_id_for_provider(value: str | None, provider_id: str) -> str | None:
     """Accept either a bare model id or a provider/model key."""
 
@@ -105,6 +118,53 @@ def set_all_agent_models(config: dict, primary: str) -> None:
     for agent in config.setdefault("agents", {}).get("list", []):
         if isinstance(agent, dict):
             agent.setdefault("model", {})["primary"] = primary
+
+
+def normalize_slack_reply_config(slack_cfg: dict) -> None:
+    """Keep Slack channel threads alive for multi-message research runs."""
+
+    reply_to_mode = normalize_slack_reply_mode(
+        env("SLACK_REPLY_TO_MODE"),
+        "SLACK_REPLY_TO_MODE",
+    )
+    channel_reply_to_mode = normalize_slack_reply_mode(
+        env_any(["SLACK_CHANNEL_REPLY_TO_MODE", "SLACK_PUBLIC_CHANNEL_REPLY_TO_MODE"]),
+        "SLACK_CHANNEL_REPLY_TO_MODE",
+    )
+    direct_reply_to_mode = normalize_slack_reply_mode(
+        env("SLACK_DIRECT_REPLY_TO_MODE"),
+        "SLACK_DIRECT_REPLY_TO_MODE",
+    )
+    group_reply_to_mode = normalize_slack_reply_mode(
+        env("SLACK_GROUP_REPLY_TO_MODE"),
+        "SLACK_GROUP_REPLY_TO_MODE",
+    )
+
+    current_reply_to_mode = slack_cfg.get("replyToMode")
+    if reply_to_mode is not None:
+        slack_cfg["replyToMode"] = reply_to_mode
+    elif current_reply_to_mode in {None, "first"}:
+        slack_cfg["replyToMode"] = "all"
+
+    by_chat_type = slack_cfg.setdefault("replyToModeByChatType", {})
+    if not isinstance(by_chat_type, dict):
+        by_chat_type = {}
+        slack_cfg["replyToModeByChatType"] = by_chat_type
+
+    if direct_reply_to_mode is not None:
+        by_chat_type["direct"] = direct_reply_to_mode
+    else:
+        by_chat_type.setdefault("direct", "off")
+
+    if group_reply_to_mode is not None:
+        by_chat_type["group"] = group_reply_to_mode
+    else:
+        by_chat_type.setdefault("group", "off")
+
+    if channel_reply_to_mode is not None:
+        by_chat_type["channel"] = channel_reply_to_mode
+    elif by_chat_type.get("channel") in {None, "first"}:
+        by_chat_type["channel"] = "all"
 
 
 def normalize_shell_export_value(value: str | None) -> str | None:
@@ -589,6 +649,11 @@ def main() -> int:
 
     slack_cfg = obj.get("channels", {}).get("slack")
     if isinstance(slack_cfg, dict):
+        try:
+            normalize_slack_reply_config(slack_cfg)
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 2
         streaming = slack_cfg.get("streaming")
         native_streaming = slack_cfg.pop("nativeStreaming", None)
         if isinstance(streaming, str):
