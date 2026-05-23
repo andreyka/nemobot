@@ -147,3 +147,17 @@ if [[ -d "${ROOT}/state/claude-auth" ]]; then
 else
   rm -rf "${X86_ROOT}/state/claude-auth"
 fi
+
+if [[ -f "${ROOT}/state/openclaw-auth.tar" ]]; then
+  cp "${ROOT}/state/openclaw-auth.tar" "${X86_ROOT}/state/openclaw-auth.tar"
+  chmod 0600 "${X86_ROOT}/state/openclaw-auth.tar"
+else
+  rm -f "${X86_ROOT}/state/openclaw-auth.tar"
+fi
+
+if [[ -f "${ROOT}/state/codex-auth.tar" ]]; then
+  cp "${ROOT}/state/codex-auth.tar" "${X86_ROOT}/state/codex-auth.tar"
+  chmod 0600 "${X86_ROOT}/state/codex-auth.tar"
+else
+  rm -f "${X86_ROOT}/state/codex-auth.tar"
+fi

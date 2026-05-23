@@ -151,7 +151,7 @@ The current design intentionally keeps secrets out of the code-capable worker tr
 - NVIDIA key lives in `state/nvidia-proxy.env`.
 - Perplexity key lives in `state/perplexity-proxy.env`.
 - Anthropic setup-token or Anthropic API key lives in `state/model-auth.env` when native Anthropic auth is enabled.
-- OpenClaw only sees `openshell-managed` plus local proxy URLs for NVIDIA and Perplexity. Anthropic is a native provider path in the current design.
+- OpenClaw sees API-compatible model routes, the native `openai-codex` OAuth route, and local proxy URLs for NVIDIA and Perplexity. The preferred public backends are OpenAI/Codex API or OpenClaw `openai-codex` OAuth with credentials injected from ignored local state; Anthropic remains a native fallback path.
 
 ### Memory-service secrets
 
@@ -219,7 +219,7 @@ Known tradeoffs:
 - remote CDP is plain HTTP on the internal bridge path
 - the worker gateway must bind on cluster LAN for delegation
 - the frontdoor still has Slack credentials because the Slack plugin requires them
-- Anthropic native auth places setup-token or API key material inside the OpenClaw sandbox trust domain when that backend is selected
+- OpenAI/Codex API auth and Anthropic native auth place model credential material inside the OpenClaw sandbox trust domain when those backends are selected
 - the x86 lab-control service can create only bounded disposable jobs, not arbitrary host workloads
 
 ## Memory Direction

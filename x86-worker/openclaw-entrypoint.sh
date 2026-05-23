@@ -7,6 +7,8 @@ if [[ "${NEMOBOT_ROOT}" == "/opt/openclaw-nemobot" && ! -d "${NEMOBOT_ROOT}" && 
 fi
 NEMOBOT_CONFIG="${NEMOBOT_ROOT}/openclaw.json"
 NEMOBOT_CLAUDE_AUTH_DIR="${NEMOBOT_ROOT}/claude-auth"
+NEMOBOT_OPENCLAW_AUTH_DIR="${NEMOBOT_ROOT}/openclaw-auth"
+NEMOBOT_CODEX_AUTH_DIR="${NEMOBOT_ROOT}/codex-auth"
 LIVE_CONFIG="/root/.openclaw/openclaw.json"
 WORKSPACE_FILES=(AGENTS.md TOOLS.md USER.md SOUL.md HEARTBEAT.md IDENTITY.md)
 STALE_FILES=(BOOTSTRAP.md)
@@ -35,6 +37,33 @@ if id -u sandbox >/dev/null 2>&1; then
     install -m 0600 -o sandbox -g sandbox "${NEMOBOT_CLAUDE_AUTH_DIR}/credentials.json" /home/sandbox/.claude/.credentials.json
   fi
 fi
+
+restore_openclaw_auth() {
+  local auth_tar="${NEMOBOT_OPENCLAW_AUTH_DIR}/openclaw-auth.tar"
+  [[ -f "${auth_tar}" ]] || return 0
+
+  mkdir -p /root/.openclaw
+  tar -xf "${auth_tar}" -C /root/.openclaw
+  chmod 0700 /root/.openclaw || true
+  chmod -R go-rwx /root/.openclaw/credentials /root/.openclaw/agents 2>/dev/null || true
+}
+
+restore_codex_auth() {
+  local auth_tar="${NEMOBOT_CODEX_AUTH_DIR}/codex-auth.tar"
+  [[ -f "${auth_tar}" ]] || return 0
+
+  mkdir -p /root/.codex
+  tar -xf "${auth_tar}" -C /root/.codex
+  chmod 0700 /root/.codex || true
+  chmod -R go-rwx /root/.codex 2>/dev/null || true
+
+  if id -u sandbox >/dev/null 2>&1; then
+    install -d -m 0700 -o sandbox -g sandbox /home/sandbox/.codex
+    cp -a /root/.codex/. /home/sandbox/.codex/
+    chown -R sandbox:sandbox /home/sandbox/.codex
+    chmod -R go-rwx /home/sandbox/.codex 2>/dev/null || true
+  fi
+}
 
 resolve_env_placeholders() {
   local config_path="$1"
@@ -102,6 +131,9 @@ for source_dir in "${NEMOBOT_ROOT}"/workspace-*; do
   agent_id="${agent_id#workspace-}"
   mkdir -p "/root/.openclaw/agents/${agent_id}/sessions"
 done
+
+restore_openclaw_auth
+restore_codex_auth
 
 if [[ -f "${LIVE_CONFIG}" ]]; then
   /usr/local/bin/openclaw-anthropic-auth

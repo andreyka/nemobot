@@ -237,6 +237,9 @@ for part in expr.split("."):
         continue
     if isinstance(value, dict):
         value = value.get(part)
+    elif isinstance(value, list) and part.isdigit():
+        idx = int(part)
+        value = value[idx] if idx < len(value) else None
     else:
         value = None
         break
@@ -247,6 +250,14 @@ if isinstance(value, (dict, list)):
     raise SystemExit(0)
 print(value)
 PY
+}
+
+drop_placeholder() {
+  local value="${1:-}"
+  if [[ "${value}" == __REPLACE_* ]]; then
+    return 0
+  fi
+  printf '%s' "${value}"
 }
 
 require_cmd() {
@@ -270,17 +281,24 @@ STATE_DIR="${ROOT}/state"
 CONFIG_PATH="${STATE_DIR}/openclaw.json"
 RUNTIME_ENV_PATH="${STATE_DIR}/runtime.env"
 MODEL_AUTH_ENV_PATH="${STATE_DIR}/model-auth.env"
+OPENCLAW_AUTH_TAR_PATH="${STATE_DIR}/openclaw-auth.tar"
 NVIDIA_ENV_PATH="${STATE_DIR}/nvidia-proxy.env"
 PERPLEXITY_ENV_PATH="${STATE_DIR}/perplexity-proxy.env"
 
+existing_primary_model="${MODEL_PRIMARY:-$(json_value "${CONFIG_PATH}" 'agents.defaults.model.primary')}"
 existing_base_url="${MODEL_API_BASE_URL:-${DGX_BASE_URL:-$(json_value "${CONFIG_PATH}" 'models.providers.__REPLACE_PROVIDER_ID__.baseUrl')}}"
 existing_model_id="${MODEL_API_MODEL_ID:-${DGX_MODEL_ID:-$(json_value "${CONFIG_PATH}" 'models.providers.__REPLACE_PROVIDER_ID__.models.0.id')}}"
 existing_model_name="${MODEL_API_MODEL_NAME:-${DGX_MODEL_NAME:-$(json_value "${CONFIG_PATH}" 'models.providers.__REPLACE_PROVIDER_ID__.models.0.name')}}"
+existing_provider_id="${MODEL_API_PROVIDER_ID:-${DGX_PROVIDER_ID:-}}"
 existing_context_window="${MODEL_CONTEXT_WINDOW:-${DGX_CONTEXT_WINDOW:-$(json_value "${CONFIG_PATH}" 'agents.defaults.contextWindow')}}"
 existing_timeout="${TIMEOUT_SECONDS:-$(json_value "${CONFIG_PATH}" 'agents.defaults.timeoutSeconds')}"
 existing_slack_bot="${SLACK_BOT_TOKEN:-$(load_env_value "${RUNTIME_ENV_PATH}" 'SLACK_BOT_TOKEN')}"
 existing_slack_app="${SLACK_APP_TOKEN:-$(load_env_value "${RUNTIME_ENV_PATH}" 'SLACK_APP_TOKEN')}"
 existing_nvidia_key="${NVIDIA_API_KEY:-$(load_env_value "${NVIDIA_ENV_PATH}" 'NVIDIA_API_KEY')}"
+existing_openai_key="${OPENAI_API_KEY:-${CODEX_API_KEY:-$(load_env_value "${MODEL_AUTH_ENV_PATH}" 'OPENAI_API_KEY')}}"
+existing_codex_model="${CODEX_MODEL:-${OPENAI_MODEL:-gpt-5.3-codex}}"
+existing_codex_oauth_model="${CODEX_MODEL:-${OPENAI_MODEL:-gpt-5.5}}"
+existing_model_api_key="${MODEL_API_KEY:-${DGX_API_KEY:-}}"
 existing_anthropic_auth_mode="${ANTHROPIC_AUTH_MODE:-$(load_env_value "${MODEL_AUTH_ENV_PATH}" 'ANTHROPIC_AUTH_MODE')}"
 existing_anthropic_auth_token="${ANTHROPIC_AUTH_TOKEN:-$(load_env_value "${MODEL_AUTH_ENV_PATH}" 'ANTHROPIC_AUTH_TOKEN')}"
 existing_anthropic_setup_token="${ANTHROPIC_SETUP_TOKEN:-$(load_env_value "${MODEL_AUTH_ENV_PATH}" 'ANTHROPIC_SETUP_TOKEN')}"
@@ -288,13 +306,21 @@ existing_anthropic_key="${ANTHROPIC_API_KEY:-$(load_env_value "${MODEL_AUTH_ENV_
 existing_anthropic_model="${ANTHROPIC_MODEL:-$(load_env_value "${MODEL_AUTH_ENV_PATH}" 'ANTHROPIC_MODEL')}"
 existing_perplexity_key="${PERPLEXITY_API_KEY:-$(load_env_value "${PERPLEXITY_ENV_PATH}" 'PERPLEXITY_API_KEY')}"
 existing_perplexity_model="${PERPLEXITY_MODEL:-$(json_value "${CONFIG_PATH}" 'plugins.entries.perplexity.config.webSearch.model')}"
-existing_worker_code_model="${WORKER_CODE_MODEL_ID:-nvidia/nemotron-3-super-120b-a12b}"
+existing_worker_code_model="${WORKER_CODE_MODEL_ID:-gpt-5.3-codex}"
+
+existing_base_url="$(drop_placeholder "${existing_base_url}")"
+existing_model_id="$(drop_placeholder "${existing_model_id}")"
+existing_model_name="$(drop_placeholder "${existing_model_name}")"
+existing_provider_id="$(drop_placeholder "${existing_provider_id}")"
+if [[ "${existing_primary_model}" == openai-codex/* ]]; then
+  existing_codex_oauth_model="${existing_primary_model#openai-codex/}"
+fi
 
 if [[ -z "${existing_base_url}" ]]; then
-  existing_base_url="http://localhost:8001/v1"
+  existing_base_url="https://api.openai.com/v1"
 fi
 if [[ -z "${existing_model_id}" ]]; then
-  existing_model_id="provider/model-name"
+  existing_model_id="${existing_codex_model}"
 fi
 if [[ -z "${existing_model_name}" ]]; then
   existing_model_name="${existing_model_id}"
@@ -303,7 +329,7 @@ if [[ -z "${existing_anthropic_model}" ]]; then
   existing_anthropic_model="claude-opus-4-7"
 fi
 if [[ -z "${existing_context_window}" ]]; then
-  existing_context_window="1048576"
+  existing_context_window="400000"
 fi
 if [[ -z "${existing_timeout}" ]]; then
   existing_timeout="2400"
@@ -312,12 +338,31 @@ if [[ -z "${existing_perplexity_model}" ]]; then
   existing_perplexity_model="sonar-pro"
 fi
 
-anthropic_default="n"
-if [[ -n "${existing_anthropic_setup_token}" || -n "${existing_anthropic_key}" || -n "${existing_anthropic_auth_token}" || "${existing_model_id}" == anthropic/* ]]; then
-  anthropic_default="y"
+backend_default="codex-api"
+if [[ -n "${MODEL_BACKEND:-}" ]]; then
+  backend_default="${MODEL_BACKEND}"
+elif [[ -n "${existing_anthropic_setup_token}" || -n "${existing_anthropic_key}" || -n "${existing_anthropic_auth_token}" || "${existing_model_id}" == anthropic/* || "${existing_primary_model}" == anthropic/* ]]; then
+  backend_default="anthropic"
+elif [[ "${existing_primary_model}" == openai-codex/* || -f "${OPENCLAW_AUTH_TAR_PATH}" ]]; then
+  backend_default="codex-oauth"
+elif [[ -n "${existing_base_url}" && "${existing_base_url}" != "https://api.openai.com/v1" && "${existing_provider_id}" != "openai" ]]; then
+  backend_default="custom-openai"
 fi
-prompt_yes_no use_anthropic_primary "Use Anthropic Claude as the primary model?" "${anthropic_default}"
-if (( use_anthropic_primary )); then
+case "${backend_default}" in
+  codex-oauth|codex-api|custom-openai|anthropic)
+    ;;
+  openai|openai-api)
+    backend_default="codex-api"
+    ;;
+  openai-codex|openai-codex-oauth)
+    backend_default="codex-oauth"
+    ;;
+  *)
+    backend_default="codex-api"
+    ;;
+esac
+prompt_choice MODEL_BACKEND "Primary model backend" "${backend_default}" "codex-oauth" "codex-api" "custom-openai" "anthropic"
+if [[ "${MODEL_BACKEND}" == "anthropic" ]]; then
   if [[ -z "${existing_anthropic_auth_mode}" ]]; then
     if [[ -n "${existing_anthropic_auth_token}" ]]; then
       existing_anthropic_auth_mode="claude-cli"
@@ -342,14 +387,47 @@ if (( use_anthropic_primary )); then
   MODEL_API_BASE_URL=""
   MODEL_API_MODEL_ID=""
   MODEL_API_MODEL_NAME=""
+  MODEL_API_PROVIDER_ID=""
+  MODEL_API_KEY=""
+  OPENAI_API_KEY=""
   existing_worker_code_model="${WORKER_CODE_MODEL_ID:-${ANTHROPIC_MODEL}}"
+  model_max_tokens_default="${MODEL_MAX_TOKENS:-${DGX_MAX_TOKENS:-32000}}"
+elif [[ "${MODEL_BACKEND}" == "codex-api" ]]; then
+  MODEL_API_BASE_URL="https://api.openai.com/v1"
+  MODEL_API_PROVIDER_ID="openai"
+  prompt_value OPENAI_API_KEY "OpenAI API key for Codex API model" "${existing_openai_key}" 1
+  if [[ -z "${OPENAI_API_KEY}" ]]; then
+    echo "OpenAI API key is required for codex-api backend. Use custom-openai for unauthenticated local endpoints." >&2
+    exit 1
+  fi
+  prompt_value MODEL_API_MODEL_ID "Codex API model id" "${existing_model_id}"
+  prompt_value MODEL_API_MODEL_NAME "Codex API model display name" "${existing_model_name}"
+  unset ANTHROPIC_AUTH_MODE ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_SETUP_TOKEN ANTHROPIC_MODEL MODEL_API_KEY || true
+  existing_worker_code_model="${WORKER_CODE_MODEL_ID:-${MODEL_API_MODEL_ID}}"
+  model_max_tokens_default="${MODEL_MAX_TOKENS:-${DGX_MAX_TOKENS:-32000}}"
+elif [[ "${MODEL_BACKEND}" == "codex-oauth" ]]; then
+  prompt_value CODEX_MODEL "Codex OAuth model id" "${existing_codex_oauth_model}"
+  MODEL_API_BASE_URL=""
+  MODEL_API_MODEL_ID=""
+  MODEL_API_MODEL_NAME=""
+  MODEL_API_PROVIDER_ID=""
+  MODEL_API_KEY=""
+  OPENAI_API_KEY=""
+  unset ANTHROPIC_AUTH_MODE ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_SETUP_TOKEN ANTHROPIC_MODEL MODEL_API_KEY || true
+  existing_worker_code_model="${WORKER_CODE_MODEL_ID:-${CODEX_MODEL}}"
   model_max_tokens_default="${MODEL_MAX_TOKENS:-${DGX_MAX_TOKENS:-32000}}"
 else
   prompt_value inference_endpoint "Model-serving API host, host:port, localhost, or full base URL" "${existing_base_url}"
   MODEL_API_BASE_URL="$(normalize_base_url "${inference_endpoint}")"
+  if [[ -n "${existing_provider_id}" && "${existing_provider_id}" != "openai" ]]; then
+    prompt_value MODEL_API_PROVIDER_ID "Provider id" "${existing_provider_id}"
+  else
+    MODEL_API_PROVIDER_ID=""
+  fi
   prompt_value MODEL_API_MODEL_ID "Primary model id" "${existing_model_id}"
   prompt_value MODEL_API_MODEL_NAME "Primary model display name" "${existing_model_name}"
-  unset ANTHROPIC_AUTH_MODE ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_SETUP_TOKEN ANTHROPIC_MODEL || true
+  prompt_value MODEL_API_KEY "Model API key, blank for local/managed endpoint" "${existing_model_api_key}" 1
+  unset ANTHROPIC_AUTH_MODE ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_SETUP_TOKEN ANTHROPIC_MODEL OPENAI_API_KEY || true
   model_max_tokens_default="${MODEL_MAX_TOKENS:-${DGX_MAX_TOKENS:-4096}}"
 fi
 
@@ -392,7 +470,16 @@ if (( SKIP_BRIDGE )); then
   stack_args+=(--skip-bridge)
 fi
 
-export MODEL_API_BASE_URL MODEL_API_MODEL_ID MODEL_API_MODEL_NAME WORKER_CODE_MODEL_ID MODEL_CONTEXT_WINDOW MODEL_MAX_TOKENS TIMEOUT_SECONDS
+export MODEL_BACKEND MODEL_API_BASE_URL MODEL_API_PROVIDER_ID MODEL_API_MODEL_ID MODEL_API_MODEL_NAME WORKER_CODE_MODEL_ID MODEL_CONTEXT_WINDOW MODEL_MAX_TOKENS TIMEOUT_SECONDS
+if [[ -n "${CODEX_MODEL:-}" ]]; then
+  export CODEX_MODEL
+fi
+if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+  export OPENAI_API_KEY
+fi
+if [[ -n "${MODEL_API_KEY:-}" ]]; then
+  export MODEL_API_KEY
+fi
 if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
   export ANTHROPIC_API_KEY
 fi

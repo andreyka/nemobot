@@ -34,6 +34,19 @@ class RenderWorkerStateTest(unittest.TestCase):
         self.assertIsNotNone(provider)
         self.assertEqual(model["id"], "claude-opus-4-7")
 
+    def test_provider_and_model_supports_builtin_openai_codex_provider(self) -> None:
+        module = load_script("arm-worker/render-worker-state.py")
+        source = {
+            "models": {"providers": {}},
+            "agents": {"defaults": {"model": {"primary": "openai-codex/gpt-5.5"}}},
+        }
+
+        provider_id, provider, model = module.provider_and_model(source)
+
+        self.assertEqual(provider_id, "openai-codex")
+        self.assertIsNone(provider)
+        self.assertEqual(model["id"], "gpt-5.5")
+
     def test_main_renders_worker_state_and_disables_slack(self) -> None:
         module = load_script("arm-worker/render-worker-state.py")
 

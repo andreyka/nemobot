@@ -8,6 +8,26 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
+OPENAI_BASE_URL = "https://api.openai.com/v1"
+DEFAULT_CODEX_MODEL = "gpt-5.3-codex"
+DEFAULT_CODEX_MODEL_NAME = "GPT-5.3-Codex"
+DEFAULT_CODEX_OAUTH_MODEL = "gpt-5.5"
+DEFAULT_CODEX_CONTEXT_WINDOW = 400000
+DEFAULT_CODEX_MAX_TOKENS = 32000
+VALID_MODEL_BACKENDS = {
+    "auto",
+    "anthropic",
+    "codex-api",
+    "codex-oauth",
+    "custom-openai",
+}
+MODEL_BACKEND_ALIASES = {
+    "openai": "codex-api",
+    "openai-api": "codex-api",
+    "openai-codex": "codex-oauth",
+    "openai-codex-oauth": "codex-oauth",
+}
+
 
 def sanitize_provider_id(base_url: str) -> str:
     """Build a stable provider identifier from a model API base URL."""
@@ -38,6 +58,53 @@ def env_any(names: list[str], default: str | None = None) -> str | None:
         if value is not None:
             return value
     return default
+
+
+def normalize_model_backend(value: str | None) -> str:
+    """Return a canonical model backend selector."""
+
+    backend = (value or "auto").strip().lower()
+    backend = MODEL_BACKEND_ALIASES.get(backend, backend)
+    if backend not in VALID_MODEL_BACKENDS:
+        valid = ", ".join(sorted(VALID_MODEL_BACKENDS))
+        raise ValueError(f"invalid MODEL_BACKEND={value!r}; expected one of: {valid}")
+    return backend
+
+
+def model_id_for_provider(value: str | None, provider_id: str) -> str | None:
+    """Accept either a bare model id or a provider/model key."""
+
+    if value is None:
+        return None
+    prefix = f"{provider_id}/"
+    if value.startswith(prefix):
+        return value[len(prefix):]
+    return value
+
+
+def codex_auth_profile_id(config: dict) -> str:
+    """Return the existing OpenClaw Codex auth profile id, if configured."""
+
+    profiles = config.get("auth", {}).get("profiles", {})
+    if not isinstance(profiles, dict):
+        return ""
+    for profile_id, profile in profiles.items():
+        if isinstance(profile, dict) and profile.get("provider") == "openai-codex":
+            return str(profile_id)
+    return ""
+
+
+def set_all_agent_models(config: dict, primary: str) -> None:
+    """Pin defaults and all explicit agents to the selected primary model."""
+
+    defaults = config.setdefault("agents", {}).setdefault("defaults", {})
+    defaults.setdefault("model", {})["primary"] = primary
+    defaults.setdefault("models", {})[primary] = {}
+    defaults.setdefault("compaction", {})["model"] = primary
+    defaults.setdefault("subagents", {})["model"] = primary
+    for agent in config.setdefault("agents", {}).get("list", []):
+        if isinstance(agent, dict):
+            agent.setdefault("model", {})["primary"] = primary
 
 
 def normalize_shell_export_value(value: str | None) -> str | None:
@@ -93,6 +160,15 @@ def needs_secret_migration(value: str | None) -> bool:
     if value == "openshell-managed":
         return False
     return True
+
+
+def is_openai_base_url(base_url: str | None) -> bool:
+    """Return True when the configured endpoint is OpenAI's public API."""
+
+    if not base_url:
+        return False
+    parsed = urlparse(base_url)
+    return parsed.scheme in {"http", "https"} and parsed.hostname == "api.openai.com"
 
 
 def replace_placeholders(node, mapping: dict[str, str]):
@@ -157,7 +233,14 @@ def main() -> int:
     context_window = int(context_window_env or "1048576")
     max_tokens = int(max_tokens_env or "4096")
     timeout_seconds = int(env("TIMEOUT_SECONDS", "2400"))
-    serving_api_key = env_any(["MODEL_API_KEY", "DGX_API_KEY"], "openshell-managed")
+    try:
+        model_backend = normalize_model_backend(env("MODEL_BACKEND"))
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return 2
+    openai_api_key = env_any(["OPENAI_API_KEY", "CODEX_API_KEY"])
+    codex_model = model_id_for_provider(env_any(["CODEX_MODEL", "OPENAI_MODEL"]), "openai-codex")
+    serving_api_key = env_any(["MODEL_API_KEY", "DGX_API_KEY"])
     slack_bot = env("SLACK_BOT_TOKEN")
     slack_app = env("SLACK_APP_TOKEN")
     gateway_token = env("GATEWAY_TOKEN")
@@ -166,8 +249,58 @@ def main() -> int:
     model_auth_env_path = state_dir / "model-auth.env"
     model_auth_env = load_env_file(model_auth_env_path)
     anthropic_legacy_env = load_env_file(state_dir / "anthropic-proxy.env")
+    if model_backend not in {"auto", "codex-api"}:
+        openai_api_key = None
+    if not openai_api_key and model_backend in {"auto", "codex-api"}:
+        openai_api_key = model_auth_env.get("OPENAI_API_KEY") or model_auth_env.get(
+            "CODEX_API_KEY"
+        )
+    existing_codex_auth_profile = codex_auth_profile_id(obj)
+    codex_auth_profile = env_any(["OPENCLAW_CODEX_AUTH_PROFILE", "CODEX_AUTH_PROFILE"])
+    if not codex_auth_profile:
+        codex_auth_profile = existing_codex_auth_profile
+    has_persisted_codex_auth = (state_dir / "openclaw-auth.tar").exists()
+    if model_backend == "codex-oauth" and not (
+        codex_auth_profile or has_persisted_codex_auth
+    ):
+        print(
+            "MODEL_BACKEND=codex-oauth requires an OpenClaw Codex auth profile "
+            "or state/openclaw-auth.tar",
+            file=sys.stderr,
+        )
+        return 1
+    if model_backend in {"anthropic", "codex-oauth"}:
+        openai_api_key = None
+        base_url = None
+        model_id = None
+        model_name = None
+        provider_id = None
+        serving_api_key = None
+    if model_backend == "custom-openai":
+        openai_api_key = None
+    if model_backend == "codex-api":
+        base_url = OPENAI_BASE_URL
+        provider_id = "openai"
+    use_codex_oauth = model_backend == "codex-oauth" or (
+        model_backend == "auto"
+        and bool(codex_auth_profile or has_persisted_codex_auth)
+        and not (openai_api_key or base_url or serving_api_key)
+    )
+    explicit_openai_requested = bool(
+        model_backend in {"codex-api", "codex-oauth", "custom-openai"}
+        or (
+            model_backend == "auto"
+            and (
+                openai_api_key
+                or codex_model
+                or provider_id == "openai"
+                or is_openai_base_url(base_url)
+                or use_codex_oauth
+            )
+        )
+    )
     anthropic_setup_token = env("ANTHROPIC_SETUP_TOKEN")
-    if not anthropic_setup_token:
+    if not anthropic_setup_token and not explicit_openai_requested:
         anthropic_setup_token = model_auth_env.get("ANTHROPIC_SETUP_TOKEN")
     anthropic_api_key = env("ANTHROPIC_API_KEY")
     anthropic_auth_token = env("ANTHROPIC_AUTH_TOKEN")
@@ -184,20 +317,52 @@ def main() -> int:
     perplexity_api_key = env("PERPLEXITY_API_KEY")
     perplexity_model = env("PERPLEXITY_MODEL", "sonar-pro")
     nvidia_api_key = env("NVIDIA_API_KEY")
-    if not anthropic_api_key:
+    if not anthropic_api_key and not explicit_openai_requested:
         anthropic_api_key = model_auth_env.get("ANTHROPIC_API_KEY") or anthropic_legacy_env.get(
             "ANTHROPIC_API_KEY"
         )
-    if not anthropic_auth_token:
+    if not anthropic_auth_token and not explicit_openai_requested:
         anthropic_auth_token = model_auth_env.get(
             "ANTHROPIC_AUTH_TOKEN"
         ) or anthropic_legacy_env.get("ANTHROPIC_AUTH_TOKEN")
-    if not anthropic_auth_mode:
+    if not anthropic_auth_mode and not explicit_openai_requested:
         anthropic_auth_mode = model_auth_env.get("ANTHROPIC_AUTH_MODE")
     if not anthropic_model:
         anthropic_model = model_auth_env.get("ANTHROPIC_MODEL", "claude-opus-4-7")
-    if "ANTHROPIC_MODEL" in anthropic_legacy_env and not env("ANTHROPIC_MODEL"):
+    if (
+        "ANTHROPIC_MODEL" in anthropic_legacy_env
+        and not env("ANTHROPIC_MODEL")
+        and not explicit_openai_requested
+    ):
         anthropic_model = anthropic_legacy_env["ANTHROPIC_MODEL"]
+
+    if model_backend == "codex-api" and not openai_api_key:
+        print(
+            "MODEL_BACKEND=codex-api requires OPENAI_API_KEY or CODEX_API_KEY",
+            file=sys.stderr,
+        )
+        return 1
+    if openai_api_key and not base_url:
+        base_url = OPENAI_BASE_URL
+    if base_url and is_openai_base_url(base_url):
+        if not provider_id:
+            provider_id = "openai"
+        if not model_id:
+            model_id = model_id_for_provider(codex_model, "openai") or DEFAULT_CODEX_MODEL
+        if not model_name:
+            model_name = (
+                DEFAULT_CODEX_MODEL_NAME
+                if model_id == DEFAULT_CODEX_MODEL
+                else model_id
+            )
+        if context_window_env is None:
+            context_window = DEFAULT_CODEX_CONTEXT_WINDOW
+        if max_tokens_env is None:
+            max_tokens = DEFAULT_CODEX_MAX_TOKENS
+        if not serving_api_key and openai_api_key:
+            serving_api_key = "${OPENAI_API_KEY}"
+    if not serving_api_key:
+        serving_api_key = "openshell-managed"
 
     if not anthropic_auth_mode:
         if anthropic_setup_token:
@@ -206,7 +371,21 @@ def main() -> int:
             anthropic_auth_mode = "api-key"
 
     use_native_anthropic = anthropic_auth_mode in {"setup-token", "api-key", "claude-cli"}
-    if use_native_anthropic:
+    if use_codex_oauth:
+        if model_auth_env_path.exists():
+            model_auth_env_path.unlink()
+        obj = prune_placeholders(obj)
+        primary = f"openai-codex/{codex_model or DEFAULT_CODEX_OAUTH_MODEL}"
+        set_all_agent_models(obj, primary)
+        if codex_auth_profile:
+            obj.setdefault("auth", {}).setdefault("profiles", {})[codex_auth_profile] = {
+                "provider": "openai-codex",
+                "mode": "oauth",
+            }
+        base_url = None
+        model_id = None
+        provider_id = None
+    elif use_native_anthropic:
         native_auth_env: dict[str, str] = {
             "ANTHROPIC_AUTH_MODE": anthropic_auth_mode,
             "ANTHROPIC_MODEL": anthropic_model,
@@ -233,16 +412,10 @@ def main() -> int:
                 "args": ["--verbose", "--permission-mode", "bypassPermissions"],
                 "resumeArgs": ["--verbose", "--permission-mode", "bypassPermissions"],
             }
-        defaults.setdefault("model", {})["primary"] = f"anthropic/{anthropic_model}"
-        defaults.setdefault("models", {})[f"anthropic/{anthropic_model}"] = {}
+        anthropic_primary = f"anthropic/{anthropic_model}"
+        set_all_agent_models(obj, anthropic_primary)
         if anthropic_auth_mode == "claude-cli":
-            defaults["models"][f"anthropic/{anthropic_model}"]["agentRuntime"] = {
-                "id": "claude-cli"
-            }
-        defaults.setdefault("compaction", {})["model"] = f"anthropic/{anthropic_model}"
-        defaults.setdefault("subagents", {})["model"] = f"anthropic/{anthropic_model}"
-        for agent in obj.setdefault("agents", {}).get("list", []):
-            agent.setdefault("model", {})["primary"] = f"anthropic/{anthropic_model}"
+            defaults["models"][anthropic_primary]["agentRuntime"] = {"id": "claude-cli"}
         if frontdoor_model and frontdoor_model != anthropic_model:
             frontdoor_primary = f"anthropic/{frontdoor_model}"
             defaults.setdefault("models", {})[frontdoor_primary] = {}
@@ -259,7 +432,9 @@ def main() -> int:
         model_id = None
         provider_id = None
     else:
-        if model_auth_env_path.exists():
+        if openai_api_key:
+            write_env_file(model_auth_env_path, {"OPENAI_API_KEY": openai_api_key})
+        elif model_auth_env_path.exists():
             model_auth_env_path.unlink()
 
     if base_url and not provider_id:
@@ -329,12 +504,7 @@ def main() -> int:
         models_obj.setdefault("providers", {})[provider_id] = provider
         primary = f"{provider_id}/{model_id}"
         defaults = obj.setdefault("agents", {}).setdefault("defaults", {})
-        defaults.setdefault("model", {})["primary"] = primary
-        defaults.setdefault("models", {})[primary] = {}
-        defaults.setdefault("compaction", {})["model"] = primary
-        defaults.setdefault("subagents", {})["model"] = primary
-        for agent in obj.setdefault("agents", {}).get("list", []):
-            agent.setdefault("model", {})["primary"] = primary
+        set_all_agent_models(obj, primary)
         if frontdoor_model and frontdoor_model != model_id:
             frontdoor_primary = f"{provider_id}/{frontdoor_model}"
             defaults.setdefault("models", {})[frontdoor_primary] = {}

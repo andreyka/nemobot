@@ -6,7 +6,7 @@ if [[ -f "${ROOT}/release.env" ]]; then
   # shellcheck disable=SC1091
   source "${ROOT}/release.env"
 fi
-OPENCLAW_RELEASE="${OPENCLAW_RELEASE:-2026.5.12}"
+OPENCLAW_RELEASE="${OPENCLAW_RELEASE:-2026.5.20}"
 OPENCLAW_OFFICIAL_PLUGIN_RELEASE="${OPENCLAW_OFFICIAL_PLUGIN_RELEASE:-${OPENCLAW_RELEASE}}"
 OPENCLAW_OFFICIAL_CHANNEL_PLUGINS="${OPENCLAW_OFFICIAL_CHANNEL_PLUGINS:-@openclaw/slack}"
 OPENSHELL_CLUSTER_IMAGE="${OPENSHELL_CLUSTER_IMAGE:-ghcr.io/nvidia/openshell/cluster@sha256:74b26e485d9263102018a7bf41a62c8cfc93117ff1594da67f007c61d0fcf246}"
@@ -23,6 +23,8 @@ SANDBOX="${SANDBOX:-nemox86worker}"
 CONFIG_SECRET="${CONFIG_SECRET:-openclaw-config-${SANDBOX}}"
 MODEL_AUTH_SECRET="${MODEL_AUTH_SECRET:-openclaw-model-auth}"
 CLAUDE_AUTH_SECRET="${CLAUDE_AUTH_SECRET:-openclaw-claude-auth}"
+OPENCLAW_AUTH_SECRET="${OPENCLAW_AUTH_SECRET:-openclaw-auth-${SANDBOX}}"
+CODEX_AUTH_SECRET="${CODEX_AUTH_SECRET:-codex-auth-${SANDBOX}}"
 IMAGE_TAG="${IMAGE_TAG:-openshell/sandbox-from:x86-nemobot}"
 LAB_CONTROL_IMAGE_TAG="${LAB_CONTROL_IMAGE_TAG:-openclaw-lab-control:local}"
 VM_RUNNER_IMAGE_TAG="${VM_RUNNER_IMAGE_TAG:-openclaw-vm-runner:local}"
@@ -562,6 +564,26 @@ apply_state() {
     "
   fi
 
+  if [[ -f "${ROOT}/state/openclaw-auth.tar" ]]; then
+    docker cp "${ROOT}/state/openclaw-auth.tar" "${CLUSTER_CONTAINER}:/tmp/openclaw-auth.tar"
+    docker exec "${CLUSTER_CONTAINER}" sh -lc "
+      kubectl -n ${NAMESPACE} create secret generic ${OPENCLAW_AUTH_SECRET} \
+        --from-file=openclaw-auth.tar=/tmp/openclaw-auth.tar \
+        --dry-run=client -o yaml | kubectl apply -f - &&
+      rm -f /tmp/openclaw-auth.tar
+    "
+  fi
+
+  if [[ -f "${ROOT}/state/codex-auth.tar" ]]; then
+    docker cp "${ROOT}/state/codex-auth.tar" "${CLUSTER_CONTAINER}:/tmp/codex-auth.tar"
+    docker exec "${CLUSTER_CONTAINER}" sh -lc "
+      kubectl -n ${NAMESPACE} create secret generic ${CODEX_AUTH_SECRET} \
+        --from-file=codex-auth.tar=/tmp/codex-auth.tar \
+        --dry-run=client -o yaml | kubectl apply -f - &&
+      rm -f /tmp/codex-auth.tar
+    "
+  fi
+
   local dir_name
   for dir_name in "${WORKSPACE_DIRS[@]}"; do
     tar -C "${ROOT}/state/${dir_name}" -cf - "${WORKSPACE_FILES[@]}" \
@@ -578,7 +600,7 @@ apply_state() {
 }
 
 apply_sandbox() {
-  local sandbox_id ssh_secret gateway_ip model_auth_env_block claude_auth_mount_block claude_auth_volume_block
+  local sandbox_id ssh_secret gateway_ip model_auth_env_block claude_auth_mount_block claude_auth_volume_block openclaw_auth_mount_block openclaw_auth_volume_block codex_auth_mount_block codex_auth_volume_block
   sandbox_id="$(python3 - <<'PY'
 import uuid
 print(uuid.uuid4())
@@ -616,6 +638,42 @@ EOF
   else
     claude_auth_mount_block=""
     claude_auth_volume_block=""
+  fi
+  if [[ -f "${ROOT}/state/openclaw-auth.tar" ]]; then
+    openclaw_auth_mount_block="$(cat <<EOF
+            - name: openclaw-auth
+              mountPath: /opt/openclaw-nemobot/openclaw-auth/openclaw-auth.tar
+              subPath: openclaw-auth.tar
+              readOnly: true
+EOF
+)"
+    openclaw_auth_volume_block="$(cat <<EOF
+        - name: openclaw-auth
+          secret:
+            secretName: ${OPENCLAW_AUTH_SECRET}
+EOF
+)"
+  else
+    openclaw_auth_mount_block=""
+    openclaw_auth_volume_block=""
+  fi
+  if [[ -f "${ROOT}/state/codex-auth.tar" ]]; then
+    codex_auth_mount_block="$(cat <<EOF
+            - name: codex-auth
+              mountPath: /opt/openclaw-nemobot/codex-auth/codex-auth.tar
+              subPath: codex-auth.tar
+              readOnly: true
+EOF
+)"
+    codex_auth_volume_block="$(cat <<EOF
+        - name: codex-auth
+          secret:
+            secretName: ${CODEX_AUTH_SECRET}
+EOF
+)"
+  else
+    codex_auth_mount_block=""
+    codex_auth_volume_block=""
   fi
 
   docker exec "${CLUSTER_CONTAINER}" kubectl delete sandbox -n "${NAMESPACE}" "${SANDBOX}" \
@@ -699,6 +757,8 @@ ${model_auth_env_block}
               mountPath: /opt/openclaw-nemobot/workspace-verifier
               readOnly: true
 ${claude_auth_mount_block}
+${openclaw_auth_mount_block}
+${codex_auth_mount_block}
       hostAliases:
         - ip: ${gateway_ip}
           hostnames:
@@ -729,6 +789,8 @@ ${claude_auth_mount_block}
           configMap:
             name: openclaw-workspace-verifier-${SANDBOX}
 ${claude_auth_volume_block}
+${openclaw_auth_volume_block}
+${codex_auth_volume_block}
 EOF
 
   docker exec "${CLUSTER_CONTAINER}" kubectl delete pod -n "${NAMESPACE}" "${SANDBOX}" \

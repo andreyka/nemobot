@@ -66,3 +66,17 @@ elif [[ ! -s "${WORKER_ROOT}/state/openclaw.json" ]]; then
   cp "${WORKER_ROOT}/templates/openclaw.template.json" "${WORKER_ROOT}/state/openclaw.json"
   chmod 0600 "${WORKER_ROOT}/state/openclaw.json"
 fi
+
+if [[ -f "${ROOT}/state/openclaw-auth.tar" ]]; then
+  cp "${ROOT}/state/openclaw-auth.tar" "${WORKER_ROOT}/state/openclaw-auth.tar"
+  chmod 0600 "${WORKER_ROOT}/state/openclaw-auth.tar"
+else
+  rm -f "${WORKER_ROOT}/state/openclaw-auth.tar"
+fi
+
+if [[ -f "${ROOT}/state/codex-auth.tar" ]]; then
+  cp "${ROOT}/state/codex-auth.tar" "${WORKER_ROOT}/state/codex-auth.tar"
+  chmod 0600 "${WORKER_ROOT}/state/codex-auth.tar"
+else
+  rm -f "${WORKER_ROOT}/state/codex-auth.tar"
+fi

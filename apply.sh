@@ -6,7 +6,7 @@ if [[ -f "${ROOT}/release.env" ]]; then
   # shellcheck disable=SC1091
   source "${ROOT}/release.env"
 fi
-OPENCLAW_RELEASE="${OPENCLAW_RELEASE:-2026.5.12}"
+OPENCLAW_RELEASE="${OPENCLAW_RELEASE:-2026.5.20}"
 OPENCLAW_OFFICIAL_PLUGIN_RELEASE="${OPENCLAW_OFFICIAL_PLUGIN_RELEASE:-${OPENCLAW_RELEASE}}"
 OPENCLAW_OFFICIAL_CHANNEL_PLUGINS="${OPENCLAW_OFFICIAL_CHANNEL_PLUGINS:-@openclaw/slack}"
 export OPENCLAW_RELEASE OPENCLAW_OFFICIAL_PLUGIN_RELEASE OPENCLAW_OFFICIAL_CHANNEL_PLUGINS
@@ -26,6 +26,10 @@ MODEL_AUTH_ENV_FILE_PATH="${MODEL_AUTH_ENV_FILE_PATH:-${STATE_DIR}/model-auth.en
 MODEL_AUTH_ENV_SECRET="${MODEL_AUTH_ENV_SECRET:-openclaw-model-auth}"
 CLAUDE_AUTH_DIR="${CLAUDE_AUTH_DIR:-${STATE_DIR}/claude-auth}"
 CLAUDE_AUTH_SECRET="${CLAUDE_AUTH_SECRET:-openclaw-claude-auth}"
+OPENCLAW_AUTH_TAR_PATH="${OPENCLAW_AUTH_TAR_PATH:-${STATE_DIR}/openclaw-auth.tar}"
+OPENCLAW_AUTH_SECRET="${OPENCLAW_AUTH_SECRET:-openclaw-auth-${SANDBOX}}"
+CODEX_AUTH_TAR_PATH="${CODEX_AUTH_TAR_PATH:-${STATE_DIR}/codex-auth.tar}"
+CODEX_AUTH_SECRET="${CODEX_AUTH_SECRET:-codex-auth-${SANDBOX}}"
 IMAGE_TAG="${IMAGE_TAG:-openshell/sandbox-from:nemobot}"
 SKIP_IMAGE_BUILD="${SKIP_IMAGE_BUILD:-0}"
 CONFIG_PATH="${CONFIG_PATH:-${STATE_DIR}/openclaw.json}"
@@ -83,7 +87,7 @@ sandbox_exists() {
 }
 
 apply_sandbox_from_scratch() {
-  local gateway_ip env_from_block workspace_mounts_block workspace_volumes_block claude_auth_mount_block claude_auth_volume_block dir_name
+  local gateway_ip env_from_block workspace_mounts_block workspace_volumes_block claude_auth_mount_block claude_auth_volume_block openclaw_auth_mount_block openclaw_auth_volume_block codex_auth_mount_block codex_auth_volume_block dir_name
   gateway_ip="$(host_gateway_bind)"
 
   if [[ -f "${ENV_FILE_PATH}" || -f "${MODEL_AUTH_ENV_FILE_PATH}" ]]; then
@@ -106,6 +110,10 @@ apply_sandbox_from_scratch() {
   workspace_volumes_block=""
   claude_auth_mount_block=""
   claude_auth_volume_block=""
+  openclaw_auth_mount_block=""
+  openclaw_auth_volume_block=""
+  codex_auth_mount_block=""
+  codex_auth_volume_block=""
   for dir_name in "${WORKSPACE_DIRS[@]}"; do
     printf -v workspace_mounts_block '%s            - name: openclaw-%s\n              mountPath: %s/%s\n              readOnly: true\n' \
       "${workspace_mounts_block}" "${dir_name}" "${NEMOBOT_ROOT}" "${dir_name}"
@@ -119,6 +127,20 @@ apply_sandbox_from_scratch() {
       "${claude_auth_mount_block}" "${NEMOBOT_ROOT}"
     printf -v claude_auth_volume_block '%s        - name: openclaw-claude-auth\n          secret:\n            secretName: %s\n' \
       "${claude_auth_volume_block}" "${CLAUDE_AUTH_SECRET}"
+  fi
+
+  if [[ -f "${OPENCLAW_AUTH_TAR_PATH}" ]]; then
+    printf -v openclaw_auth_mount_block '%s            - name: openclaw-auth\n              mountPath: %s/openclaw-auth/openclaw-auth.tar\n              subPath: openclaw-auth.tar\n              readOnly: true\n' \
+      "${openclaw_auth_mount_block}" "${NEMOBOT_ROOT}"
+    printf -v openclaw_auth_volume_block '%s        - name: openclaw-auth\n          secret:\n            secretName: %s\n' \
+      "${openclaw_auth_volume_block}" "${OPENCLAW_AUTH_SECRET}"
+  fi
+
+  if [[ -f "${CODEX_AUTH_TAR_PATH}" ]]; then
+    printf -v codex_auth_mount_block '%s            - name: codex-auth\n              mountPath: %s/codex-auth/codex-auth.tar\n              subPath: codex-auth.tar\n              readOnly: true\n' \
+      "${codex_auth_mount_block}" "${NEMOBOT_ROOT}"
+    printf -v codex_auth_volume_block '%s        - name: codex-auth\n          secret:\n            secretName: %s\n' \
+      "${codex_auth_volume_block}" "${CODEX_AUTH_SECRET}"
   fi
 
   cat <<EOF | docker exec -i "${CLUSTER_CONTAINER}" kubectl apply -f -
@@ -186,6 +208,8 @@ ${env_from_block}
               readOnly: true
 ${workspace_mounts_block}
 ${claude_auth_mount_block}
+${openclaw_auth_mount_block}
+${codex_auth_mount_block}
       hostAliases:
         - ip: ${gateway_ip}
           hostnames:
@@ -205,6 +229,8 @@ ${claude_auth_mount_block}
             secretName: ${CONFIG_SECRET}
 ${workspace_volumes_block}
 ${claude_auth_volume_block}
+${openclaw_auth_volume_block}
+${codex_auth_volume_block}
 EOF
 }
 
@@ -313,6 +339,26 @@ if [[ -d "${CLAUDE_AUTH_DIR}" ]] && [[ -f "${CLAUDE_AUTH_DIR}/claude.json" || -f
   "
 fi
 
+if [[ -f "${OPENCLAW_AUTH_TAR_PATH}" ]]; then
+  docker cp "${OPENCLAW_AUTH_TAR_PATH}" "${CLUSTER_CONTAINER}:/tmp/openclaw-auth.tar"
+  docker exec "${CLUSTER_CONTAINER}" sh -lc "
+    kubectl -n ${NAMESPACE} create secret generic ${OPENCLAW_AUTH_SECRET} \
+      --from-file=openclaw-auth.tar=/tmp/openclaw-auth.tar \
+      --dry-run=client -o yaml | kubectl apply -f - &&
+    rm -f /tmp/openclaw-auth.tar
+  "
+fi
+
+if [[ -f "${CODEX_AUTH_TAR_PATH}" ]]; then
+  docker cp "${CODEX_AUTH_TAR_PATH}" "${CLUSTER_CONTAINER}:/tmp/codex-auth.tar"
+  docker exec "${CLUSTER_CONTAINER}" sh -lc "
+    kubectl -n ${NAMESPACE} create secret generic ${CODEX_AUTH_SECRET} \
+      --from-file=codex-auth.tar=/tmp/codex-auth.tar \
+      --dry-run=client -o yaml | kubectl apply -f - &&
+    rm -f /tmp/codex-auth.tar
+  "
+fi
+
 for dir_name in "${WORKSPACE_DIRS[@]}"; do
   configmap_name="openclaw-${dir_name}-${SANDBOX}"
   tar -C "${STATE_DIR}/${dir_name}" -cf - "${WORKSPACE_FILES[@]}" \
@@ -360,9 +406,13 @@ env_secret = sys.argv[6]
 model_auth_env_secret = sys.argv[7]
 claude_auth_secret = sys.argv[8]
 has_claude_auth = sys.argv[9] == "1"
-desired_sandbox_id = sys.argv[10]
-desired_ssh_secret = sys.argv[11]
-workspace_dirs = sys.argv[12:]
+openclaw_auth_secret = sys.argv[10]
+has_openclaw_auth = sys.argv[11] == "1"
+codex_auth_secret = sys.argv[12]
+has_codex_auth = sys.argv[13] == "1"
+desired_sandbox_id = sys.argv[14]
+desired_ssh_secret = sys.argv[15]
+workspace_dirs = sys.argv[16:]
 doc = json.load(sys.stdin)
 
 doc.pop("status", None)
@@ -438,6 +488,18 @@ claude_auth_mount = {
     "mountPath": f"{nemobot_root}/claude-auth",
     "readOnly": True,
 }
+openclaw_auth_mount = {
+    "name": "openclaw-auth",
+    "mountPath": f"{nemobot_root}/openclaw-auth/openclaw-auth.tar",
+    "subPath": "openclaw-auth.tar",
+    "readOnly": True,
+}
+codex_auth_mount = {
+    "name": "codex-auth",
+    "mountPath": f"{nemobot_root}/codex-auth/codex-auth.tar",
+    "subPath": "codex-auth.tar",
+    "readOnly": True,
+}
 filtered_mounts = [
     mount
     for mount in mounts
@@ -460,6 +522,10 @@ filtered_mounts.append(exec_approvals_mount)
 filtered_mounts.extend(workspace_mounts)
 if has_claude_auth:
     filtered_mounts.append(claude_auth_mount)
+if has_openclaw_auth:
+    filtered_mounts.append(openclaw_auth_mount)
+if has_codex_auth:
+    filtered_mounts.append(codex_auth_mount)
 container["volumeMounts"] = filtered_mounts
 
 volumes = spec.setdefault("volumes", [])
@@ -478,20 +544,33 @@ claude_auth_volume = {
     "name": "openclaw-claude-auth",
     "secret": {"secretName": claude_auth_secret},
 }
+openclaw_auth_volume = {
+    "name": "openclaw-auth",
+    "secret": {"secretName": openclaw_auth_secret},
+}
+codex_auth_volume = {
+    "name": "codex-auth",
+    "secret": {"secretName": codex_auth_secret},
+}
 filtered_volumes = [
     volume
     for volume in volumes
     if volume.get("name") not in {desired_volume["name"], *{v["name"] for v in workspace_volumes}}
     and not str(volume.get("name", "")).startswith("openclaw-")
+    and volume.get("name") != "codex-auth"
 ]
 filtered_volumes.append(desired_volume)
 filtered_volumes.extend(workspace_volumes)
 if has_claude_auth:
     filtered_volumes.append(claude_auth_volume)
+if has_openclaw_auth:
+    filtered_volumes.append(openclaw_auth_volume)
+if has_codex_auth:
+    filtered_volumes.append(codex_auth_volume)
 spec["volumes"] = filtered_volumes
 
 json.dump(doc, sys.stdout)
-' "${IMAGE_TAG}" "${CONFIG_SECRET}" "${NEMOBOT_ROOT}" "${ENTRYPOINT_CMD}" "${SANDBOX}" "$( [[ -f "${ENV_FILE_PATH}" ]] && printf "%s" "${ENV_SECRET}" )" "$( [[ -f "${MODEL_AUTH_ENV_FILE_PATH}" ]] && printf "%s" "${MODEL_AUTH_ENV_SECRET}" )" "${CLAUDE_AUTH_SECRET}" "$( [[ -f "${CLAUDE_AUTH_DIR}/claude.json" || -f "${CLAUDE_AUTH_DIR}/credentials.json" ]] && printf "1" || printf "0" )" "${DESIRED_SANDBOX_ID}" "${DESIRED_SSH_SECRET}" "${WORKSPACE_DIRS[@]}" \
+' "${IMAGE_TAG}" "${CONFIG_SECRET}" "${NEMOBOT_ROOT}" "${ENTRYPOINT_CMD}" "${SANDBOX}" "$( [[ -f "${ENV_FILE_PATH}" ]] && printf "%s" "${ENV_SECRET}" )" "$( [[ -f "${MODEL_AUTH_ENV_FILE_PATH}" ]] && printf "%s" "${MODEL_AUTH_ENV_SECRET}" )" "${CLAUDE_AUTH_SECRET}" "$( [[ -f "${CLAUDE_AUTH_DIR}/claude.json" || -f "${CLAUDE_AUTH_DIR}/credentials.json" ]] && printf "1" || printf "0" )" "${OPENCLAW_AUTH_SECRET}" "$( [[ -f "${OPENCLAW_AUTH_TAR_PATH}" ]] && printf "1" || printf "0" )" "${CODEX_AUTH_SECRET}" "$( [[ -f "${CODEX_AUTH_TAR_PATH}" ]] && printf "1" || printf "0" )" "${DESIRED_SANDBOX_ID}" "${DESIRED_SSH_SECRET}" "${WORKSPACE_DIRS[@]}" \
   | docker exec -i "${CLUSTER_CONTAINER}" kubectl apply -f -
 fi
 
@@ -522,14 +601,11 @@ for _ in $(seq 1 30); do
   sleep 2
 done
 
-docker exec "${CLUSTER_CONTAINER}" kubectl exec -n "${NAMESPACE}" "${SANDBOX}" -- sh -lc "timeout 8 bash -lc '
-  jq -r '
-    [
-      (.gateway.bind // \"n/a\"),
-      (.browser.defaultProfile // \"n/a\"),
-      (.browser.evaluateEnabled // false),
-      (.channels.slack.groupPolicy // \"n/a\"),
-      (.channels.slack.requireMention // \"n/a\")
-    ] | @tsv
-  ' /root/.openclaw/openclaw.json
-' || true"
+docker exec "${CLUSTER_CONTAINER}" kubectl exec -n "${NAMESPACE}" "${SANDBOX}" -- \
+  jq -r '[
+    (.gateway.bind // "n/a"),
+    (.browser.defaultProfile // "n/a"),
+    (.browser.evaluateEnabled // false),
+    (.channels.slack.groupPolicy // "n/a"),
+    (.channels.slack.requireMention // "n/a")
+  ] | @tsv' /root/.openclaw/openclaw.json || true

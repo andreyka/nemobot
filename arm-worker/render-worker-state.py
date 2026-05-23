@@ -63,6 +63,7 @@ def provider_and_model(source: dict) -> tuple[str, dict | None, dict]:
     builtin_provider_ids = {
         "anthropic",
         "openai",
+        "openai-codex",
         "openrouter",
         "google",
         "google-vertex",
@@ -184,7 +185,9 @@ def main() -> int:
     local_primary = f"{local_provider_id}/{local_model['id']}"
     code_model_id = os.environ.get("WORKER_CODE_MODEL_ID", local_model["id"]).strip()
     code_primary = local_primary
-    if code_model_id and local_provider is not None:
+    if code_model_id and "/" in code_model_id:
+        code_primary = code_model_id
+    elif code_model_id and local_provider is not None:
         code_primary = ensure_model(
             template,
             f"{local_provider_id}/{code_model_id}",

@@ -46,25 +46,69 @@ Or initialize local state first:
 ./stack-install.sh --init-state
 ```
 
-Then provide the expected environment and deploy the whole stack:
+Then provide the expected environment and deploy the whole stack. The default
+documented backend is OpenAI's Codex API model path:
 
 ```bash
-export MODEL_API_BASE_URL=http://model-api.example.internal:8001/v1
-export MODEL_API_MODEL_ID=provider/model-name
-export WORKER_CODE_MODEL_ID=nvidia/nemotron-3-super-120b-a12b
-export MODEL_CONTEXT_WINDOW=131072
+export MODEL_BACKEND=codex-api
+export OPENAI_API_KEY='<set-in-local-state>'
+export MODEL_API_BASE_URL=https://api.openai.com/v1
+export MODEL_API_PROVIDER_ID=openai
+export MODEL_API_MODEL_ID=gpt-5.3-codex
+export MODEL_API_MODEL_NAME=GPT-5.3-Codex
+export WORKER_CODE_MODEL_ID=gpt-5.3-codex
+export MODEL_CONTEXT_WINDOW=400000
+export MODEL_MAX_TOKENS=32000
 export SLACK_BOT_TOKEN='<set-in-local-state>'
 export SLACK_APP_TOKEN='<set-in-local-state>'
-export NVIDIA_API_KEY='<set-in-local-state>'
 export PERPLEXITY_API_KEY='<set-in-local-state>'
 export PERPLEXITY_MODEL=sonar-pro
 export TIMEOUT_SECONDS=2400
 ./stack-install.sh
 ```
 
+`CODEX_API_KEY` is accepted as an alias for `OPENAI_API_KEY`, but it must be an
+OpenAI API key for API-backed inference.
+
+`MODEL_BACKEND` accepts `auto`, `codex-oauth`, `codex-api`, `custom-openai`, and
+`anthropic`. Explicit values win over persisted auth bundles, so switching back
+to Anthropic does not require deleting `state/openclaw-auth.tar`.
+
+ChatGPT/Codex subscription auth is supported through OpenClaw's `openai-codex`
+OAuth profile and a minimal Codex CLI auth bundle:
+
+```bash
+codex login
+./persist-codex-auth.sh
+openclaw models auth login --provider openai-codex --set-default
+./persist-openclaw-auth.sh
+export MODEL_BACKEND=codex-oauth
+./stack-install.sh
+```
+
+When `MODEL_BACKEND=codex-oauth`, Nemobot routes agents through
+`openai-codex/gpt-5.5` and ignores stale Anthropic/OpenAI API state. In `auto`
+mode, the same route is selected when the persisted OpenClaw Codex profile is
+present and no API key/backend URL is configured. The persisted Codex CLI bundle
+contains only `auth.json` and `config.toml`; logs, history, and SQLite state are
+not copied.
+
+For a local or third-party OpenAI-compatible endpoint, keep using the generic
+model API variables:
+
+```bash
+export MODEL_BACKEND=custom-openai
+export MODEL_API_BASE_URL=http://model-api.example.internal:8001/v1
+export MODEL_API_MODEL_ID=provider/model-name
+export MODEL_API_KEY='<set-if-required>'
+export WORKER_CODE_MODEL_ID=provider/model-name
+./stack-install.sh
+```
+
 To use Anthropic Claude natively through OpenClaw, prefer a Claude subscription setup-token. Generate it with `claude setup-token` on any machine, then export it here instead of `MODEL_API_BASE_URL` and `MODEL_API_MODEL_ID`. Nemobot will keep the token in ignored local state and import it into OpenClaw inside each sandbox at startup.
 
 ```bash
+export MODEL_BACKEND=anthropic
 export ANTHROPIC_AUTH_MODE=setup-token
 export ANTHROPIC_SETUP_TOKEN='<set-in-local-state>'
 export ANTHROPIC_MODEL=claude-opus-4-7
@@ -77,6 +121,7 @@ export SLACK_APP_TOKEN='<set-in-local-state>'
 Anthropic API keys still work as a fallback, but they now use the same native OpenClaw provider path instead of the legacy host-side Anthropic proxy:
 
 ```bash
+export MODEL_BACKEND=anthropic
 export ANTHROPIC_AUTH_MODE=api-key
 export ANTHROPIC_API_KEY='<set-in-local-state>'
 export ANTHROPIC_MODEL=claude-opus-4-7
@@ -133,7 +178,7 @@ If you only want to deploy the frontdoor sandbox and host-side containers:
 - `state/runtime.env`
   Frontdoor runtime secrets injected as env vars into `nemobot`
 - `state/model-auth.env`
-  Shared in-sandbox model auth for native OpenClaw providers such as Anthropic setup-token or Anthropic API key
+  Shared in-sandbox model auth for native/API providers such as OpenAI API key, Anthropic setup-token, or Anthropic API key
 - `state/nvidia-proxy.env`
   Host-only NVIDIA cloud credential for the local proxy container
 - `state/perplexity-proxy.env`
@@ -153,6 +198,7 @@ If you only want to deploy the frontdoor sandbox and host-side containers:
 - `communicator` is intentionally lightweight and should delegate real work rather than trying to research inline
 - `vuln_researcher` does not have local shell access; it must hand substantive code and runtime work to `orchestrator`
 - the primary inference backend only needs to expose a compatible model-serving API; it does not depend on a specific hardware vendor
+- OpenAI/Codex API and OpenClaw `openai-codex` OAuth are the preferred public backends; Anthropic Claude remains available as an explicit fallback
 - Anthropic Claude subscription auth is handled natively inside OpenClaw via setup-token; it does not require the host-side Anthropic proxy
 - analyzer and verifier default to `WORKER_CODE_MODEL_ID` for code-heavy tasks; it must support OpenClaw tool use on your proxy path
 - public GitHub repo access is intentionally tokenless; use HTTPS clone and `https://api.github.com` for public metadata

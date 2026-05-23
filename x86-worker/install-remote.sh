@@ -144,6 +144,8 @@ rsync_cmd \
   "${ROOT}/openclaw-bridge.py" \
   "${ROOT}/openclaw-anthropic-auth.py" \
   "${ROOT}/openclaw-memory.py" \
+  "${ROOT}/persist-codex-auth.sh" \
+  "${ROOT}/persist-openclaw-auth.sh" \
   "${X86_ROOT}/openclaw-entrypoint.sh" \
   "${X86_ROOT}/remote-deploy.sh" \
   "${REMOTE_TARGET}:${REMOTE_DIR}/"
