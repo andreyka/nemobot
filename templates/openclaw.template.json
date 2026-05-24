@@ -100,9 +100,16 @@
             "sessions_history",
             "sessions_send",
             "session_status",
+            "exec",
             "memory_search",
-            "memory_get"
+            "memory_get",
+            "web_search",
+            "web_fetch"
           ],
+          "exec": {
+            "security": "deny",
+            "ask": "off"
+          },
           "loopDetection": {
             "enabled": true
           }
@@ -130,9 +137,16 @@
             "sessions_history",
             "sessions_send",
             "session_status",
+            "exec",
             "memory_search",
-            "memory_get"
+            "memory_get",
+            "web_search",
+            "web_fetch"
           ],
+          "exec": {
+            "security": "deny",
+            "ask": "off"
+          },
           "loopDetection": {
             "enabled": true
           }
@@ -157,40 +171,50 @@
             "sessions_history",
             "sessions_send",
             "session_status",
+            "exec",
             "memory_search",
             "memory_get",
             "web_search",
             "web_fetch"
           ],
+          "exec": {
+            "security": "deny",
+            "ask": "off"
+          },
           "loopDetection": {
             "enabled": true
           }
         }
       },
-    {
-      "id": "vuln_researcher",
-      "workspace": "/root/.openclaw/workspace-vuln-researcher",
-      "model": {
-        "primary": "custom-host-openshell-internal-9002/nvidia/nemotron-3-super-120b-a12b"
-      },
-      "subagents": {
-        "allowAgents": [
-          "orchestrator"
-        ]
-      },
-      "tools": {
-        "profile": "coding",
-        "allow": [
-          "sessions_spawn",
-          "sessions_send",
-          "session_status",
-          "sessions_list",
-          "sessions_history",
-          "memory_search",
-          "memory_get",
-          "web_search",
-          "web_fetch"
-        ],
+      {
+        "id": "vuln_researcher",
+        "workspace": "/root/.openclaw/workspace-vuln-researcher",
+        "model": {
+          "primary": "custom-host-openshell-internal-9002/nvidia/nemotron-3-super-120b-a12b"
+        },
+        "subagents": {
+          "allowAgents": [
+            "orchestrator"
+          ]
+        },
+        "tools": {
+          "profile": "coding",
+          "allow": [
+            "sessions_spawn",
+            "sessions_send",
+            "session_status",
+            "sessions_list",
+            "sessions_history",
+            "exec",
+            "memory_search",
+            "memory_get",
+            "web_search",
+            "web_fetch"
+          ],
+          "exec": {
+            "security": "deny",
+            "ask": "off"
+          },
           "loopDetection": {
             "enabled": true
           }
@@ -211,6 +235,10 @@
             "web_search",
             "web_fetch"
           ],
+          "exec": {
+            "security": "allowlist",
+            "ask": "off"
+          },
           "loopDetection": {
             "enabled": true
           }
@@ -220,6 +248,19 @@
   },
   "tools": {
     "profile": "coding",
+    "agentToAgent": {
+      "enabled": true,
+      "allow": [
+        "main",
+        "communicator",
+        "general_assistant",
+        "vuln_researcher",
+        "orchestrator"
+      ]
+    },
+    "sessions": {
+      "visibility": "all"
+    },
     "web": {
       "search": {
         "enabled": false,

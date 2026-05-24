@@ -380,6 +380,112 @@ class RenderStateTest(unittest.TestCase):
             self.assertEqual(slack["replyToModeByChatType"]["direct"], "all")
             self.assertEqual(slack["replyToModeByChatType"]["group"], "first")
 
+    def test_main_migrates_research_agent_tooling(self) -> None:
+        module = load_script("render-state.py")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "openclaw.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "tools": {"profile": "coding"},
+                        "agents": {
+                            "defaults": {"model": {"primary": "test/model"}},
+                            "list": [
+                                {
+                                    "id": "communicator",
+                                    "tools": {
+                                        "allow": [
+                                            "sessions_spawn",
+                                            "sessions_history",
+                                            "memory_search",
+                                            "memory_get",
+                                        ]
+                                    },
+                                },
+                                {
+                                    "id": "vuln_researcher",
+                                    "tools": {
+                                        "allow": [
+                                            "exec",
+                                            "memory_search",
+                                            "memory_get",
+                                            "web_search",
+                                            "web_fetch",
+                                        ]
+                                    },
+                                },
+                                {
+                                    "id": "orchestrator",
+                                    "tools": {
+                                        "allow": [
+                                            "memory_search",
+                                            "memory_get",
+                                        ]
+                                    },
+                                },
+                            ],
+                        },
+                        "gateway": {"auth": {"token": "test-token"}},
+                    }
+                )
+            )
+
+            with mock.patch.dict(os.environ, {}, clear=True):
+                with mock.patch("sys.argv", ["render-state.py", str(state_path)]):
+                    self.assertEqual(module.main(), 0)
+
+            rendered = json.loads(state_path.read_text())
+            self.assertEqual(rendered["tools"]["sessions"]["visibility"], "all")
+            self.assertTrue(rendered["tools"]["agentToAgent"]["enabled"])
+            self.assertIn("vuln_researcher", rendered["tools"]["agentToAgent"]["allow"])
+            self.assertIn("orchestrator", rendered["tools"]["agentToAgent"]["allow"])
+
+            agents = {agent["id"]: agent for agent in rendered["agents"]["list"]}
+            required_frontdoor_tools = {
+                "sessions_spawn",
+                "sessions_list",
+                "sessions_history",
+                "sessions_send",
+                "session_status",
+                "exec",
+                "memory_search",
+                "memory_get",
+                "web_search",
+                "web_fetch",
+            }
+            self.assertTrue(
+                required_frontdoor_tools.issubset(
+                    set(agents["communicator"]["tools"]["allow"])
+                )
+            )
+            self.assertEqual(
+                agents["communicator"]["tools"]["exec"],
+                {"security": "deny", "ask": "off"},
+            )
+            self.assertTrue(
+                required_frontdoor_tools.issubset(
+                    set(agents["vuln_researcher"]["tools"]["allow"])
+                )
+            )
+            self.assertIn(
+                "orchestrator",
+                agents["vuln_researcher"]["subagents"]["allowAgents"],
+            )
+            self.assertTrue(
+                {
+                    "exec",
+                    "memory_search",
+                    "memory_get",
+                    "web_search",
+                    "web_fetch",
+                }.issubset(set(agents["orchestrator"]["tools"]["allow"]))
+            )
+            self.assertEqual(
+                agents["orchestrator"]["tools"]["exec"],
+                {"security": "allowlist", "ask": "off"},
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -28,6 +28,38 @@ MODEL_BACKEND_ALIASES = {
     "openai-codex": "codex-oauth",
     "openai-codex-oauth": "codex-oauth",
 }
+FRONTDOOR_AGENT_IDS = [
+    "main",
+    "communicator",
+    "general_assistant",
+    "vuln_researcher",
+]
+FRONTDOOR_COORDINATION_TOOLS = [
+    "sessions_spawn",
+    "sessions_list",
+    "sessions_history",
+    "sessions_send",
+    "session_status",
+    "exec",
+    "memory_search",
+    "memory_get",
+    "web_search",
+    "web_fetch",
+]
+ORCHESTRATOR_TOOLS = [
+    "exec",
+    "memory_search",
+    "memory_get",
+    "web_search",
+    "web_fetch",
+]
+CROSS_AGENT_SESSION_IDS = [
+    "main",
+    "communicator",
+    "general_assistant",
+    "vuln_researcher",
+    "orchestrator",
+]
 
 
 def sanitize_provider_id(base_url: str) -> str:
@@ -118,6 +150,84 @@ def set_all_agent_models(config: dict, primary: str) -> None:
     for agent in config.setdefault("agents", {}).get("list", []):
         if isinstance(agent, dict):
             agent.setdefault("model", {})["primary"] = primary
+
+
+def append_unique(values: list, additions: list[str]) -> list:
+    """Append missing string values while preserving existing order."""
+
+    seen = {value for value in values if isinstance(value, str)}
+    result = list(values)
+    for value in additions:
+        if value not in seen:
+            result.append(value)
+            seen.add(value)
+    return result
+
+
+def set_agent_children(agent: dict, allow_agents: list[str]) -> None:
+    """Ensure an agent can spawn its intended child agents."""
+
+    subagents = agent.setdefault("subagents", {})
+    current = subagents.get("allowAgents", [])
+    if not isinstance(current, list):
+        current = []
+    subagents["allowAgents"] = append_unique(current, allow_agents)
+
+
+def ensure_agent_tools(
+    agent: dict,
+    tools: list[str],
+    *,
+    exec_security: str | None,
+) -> None:
+    """Keep agent tool policy compatible with OpenClaw subagent inheritance."""
+
+    tool_cfg = agent.setdefault("tools", {})
+    tool_cfg.setdefault("profile", "coding")
+    current_allow = tool_cfg.get("allow", [])
+    if not isinstance(current_allow, list):
+        current_allow = []
+    tool_cfg["allow"] = append_unique(current_allow, tools)
+    tool_cfg.setdefault("loopDetection", {})["enabled"] = True
+    if exec_security is not None and "exec" in tool_cfg["allow"]:
+        exec_cfg = tool_cfg.setdefault("exec", {})
+        exec_cfg["security"] = exec_security
+        exec_cfg["ask"] = "off"
+
+
+def normalize_agent_orchestration_config(config: dict) -> None:
+    """Migrate stale state so spawned specialists keep required tool access."""
+
+    tools = config.setdefault("tools", {})
+    tools.setdefault("profile", "coding")
+    tools.setdefault("loopDetection", {})["enabled"] = True
+    tools.setdefault("sessions", {})["visibility"] = "all"
+    agent_to_agent = tools.setdefault("agentToAgent", {})
+    agent_to_agent["enabled"] = True
+    current_allow = agent_to_agent.get("allow", [])
+    if not isinstance(current_allow, list):
+        current_allow = []
+    agent_to_agent["allow"] = append_unique(current_allow, CROSS_AGENT_SESSION_IDS)
+
+    agents = config.setdefault("agents", {}).setdefault("list", [])
+    if not isinstance(agents, list):
+        return
+
+    for agent in agents:
+        if not isinstance(agent, dict):
+            continue
+        agent_id = agent.get("id")
+        if agent_id in FRONTDOOR_AGENT_IDS:
+            ensure_agent_tools(agent, FRONTDOOR_COORDINATION_TOOLS, exec_security="deny")
+        if agent_id in {"main", "communicator"}:
+            set_agent_children(
+                agent,
+                ["general_assistant", "vuln_researcher", "orchestrator"],
+            )
+        elif agent_id in {"general_assistant", "vuln_researcher"}:
+            set_agent_children(agent, ["orchestrator"])
+        elif agent_id == "orchestrator":
+            ensure_agent_tools(agent, ORCHESTRATOR_TOOLS, exec_security="allowlist")
 
 
 def normalize_slack_reply_config(slack_cfg: dict) -> None:
@@ -671,6 +781,8 @@ def main() -> int:
         provider_cfg = obj.get("models", {}).get("providers", {}).get("anthropic")
         if isinstance(provider_cfg, dict) and not provider_cfg.get("baseUrl"):
             obj["models"]["providers"].pop("anthropic", None)
+
+    normalize_agent_orchestration_config(obj)
 
     path.write_text(json.dumps(obj, indent=2) + "\n")
     return 0
