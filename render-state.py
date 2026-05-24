@@ -35,6 +35,7 @@ FRONTDOOR_AGENT_IDS = [
     "vuln_researcher",
 ]
 FRONTDOOR_COORDINATION_TOOLS = [
+    "message",
     "sessions_spawn",
     "sessions_list",
     "sessions_history",
@@ -47,6 +48,7 @@ FRONTDOOR_COORDINATION_TOOLS = [
     "web_fetch",
 ]
 ORCHESTRATOR_TOOLS = [
+    "message",
     "exec",
     "memory_search",
     "memory_get",

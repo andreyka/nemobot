@@ -443,6 +443,7 @@ class RenderStateTest(unittest.TestCase):
 
             agents = {agent["id"]: agent for agent in rendered["agents"]["list"]}
             required_frontdoor_tools = {
+                "message",
                 "sessions_spawn",
                 "sessions_list",
                 "sessions_history",
@@ -474,6 +475,7 @@ class RenderStateTest(unittest.TestCase):
             )
             self.assertTrue(
                 {
+                    "message",
                     "exec",
                     "memory_search",
                     "memory_get",

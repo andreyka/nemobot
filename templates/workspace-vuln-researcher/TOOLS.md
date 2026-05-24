@@ -7,6 +7,8 @@ Use this file for environment-specific notes that matter to vulnerability resear
 - primary evidence sources
 - x86 lab routing notes
 - Use `sessions_spawn` to start `orchestrator` for substantive work.
+- Always include `agentId=orchestrator` in `sessions_spawn` calls intended for `orchestrator`.
+- Confirm the returned `childSessionKey` starts with `agent:orchestrator:` before assuming worker routing is active.
 - Use `sessions_send` to refine or continue an existing `orchestrator` session.
 - Use `session_status`, `sessions_list`, and `sessions_history` to inspect progress and collect results.
 - Default worker policy for delegated work:

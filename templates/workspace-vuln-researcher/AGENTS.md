@@ -47,6 +47,9 @@ If a file is missing, continue. Do not stall on bootstrap.
 ## Delegation
 
 - Use `sessions_spawn` to start `orchestrator` for any substantive child work.
+- When spawning `orchestrator`, pass `agentId` exactly as `orchestrator`.
+- Writing "you are orchestrator" in the child task text is not routing; missing `agentId` spawns the wrong agent.
+- After a spawn, check that the returned `childSessionKey` starts with `agent:orchestrator:`. If it does not, treat that as a routing failure and retry once with `agentId=orchestrator`.
 - Use `sessions_send`, `session_status`, `sessions_list`, and `sessions_history` to drive and inspect the `orchestrator` session.
 - Do not call `openclaw-bridge` directly from this workspace.
 - For broad or deep investigations, split work into bounded child jobs with one narrow objective each.
