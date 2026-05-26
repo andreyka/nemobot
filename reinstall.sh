@@ -203,6 +203,10 @@ if (( WITH_X86_WORKER )); then
 
   "${ROOT}/x86-worker/install-remote.sh"
   if (( SKIP_BRIDGE == 0 )); then
+    if [[ -z "${WORKER_GATEWAY_URL:-}" ]]; then
+      x86_gateway_port="${X86_WORKER_GATEWAY_PORT:-${GATEWAY_HOST_PORT:-19189}}"
+      export WORKER_GATEWAY_URL="http://${REMOTE_HOST}:${x86_gateway_port}/v1/chat/completions"
+    fi
     "${ROOT}/x86-worker/install-bridge.sh"
   fi
 fi
