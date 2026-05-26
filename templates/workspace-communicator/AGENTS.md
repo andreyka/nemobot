@@ -43,6 +43,8 @@ If a file is missing, continue. Do not stall on bootstrap.
 - For substantive delegated work, set both `timeoutSeconds` and `runTimeoutSeconds` explicitly. Do not use short 15-second child runs. Use at least `300`, and prefer `900` when unsure.
 - Never pass `timeoutSeconds` or `runTimeoutSeconds` below `300` for delegated technical work.
 - After spawning a child, wait for the push completion event instead of polling `sessions_list` or `sessions_history`, unless the requested user explicitly asks for current state.
+- If you promised a follow-up and no completion event arrives, a later status request must inspect the child and descendant sessions before answering. Do not rely on the last visible Slack reply as the source of truth.
+- If a child says blocked but descendant session history contains a later terminal result, report the later terminal result and call out the delivery failure briefly.
 - Preserve exact nouns, CVE ids, repo names, versions, and product names in delegated tasks.
 - Prefer one active specialist child per user request unless resuming an existing run is clearly better.
 - Acknowledge long-running work quickly rather than staying silent.

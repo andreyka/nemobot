@@ -64,6 +64,10 @@ If a file is missing, continue. Do not stall on bootstrap.
   2. have it submit the bounded worker job
   3. poll or wait on the child status
   4. synthesize the result and decide the next bounded step
+- If this workspace was spawned by `communicator` for a final user-visible result, do not finalize as `[blocked]` while an `orchestrator` child is still running or while a retry child has no terminal result yet.
+- A running child is not a blocker. Wait for the child to finish, or use `session_status` / `sessions_history` with bounded backoff until it reaches a terminal state or the delegated timeout expires.
+- If nested child delivery fails but `sessions_history` contains the child result, synthesize that result yourself and return it to the parent. Do not rely solely on automatic nested delivery.
+- When reporting a completed validation, include the actual verdict and evidence even if an earlier status update said the work was still blocked.
 - For environment-backed validation, ask `orchestrator` for separate bounded jobs:
   - environment preparation
   - reproducer or invariant check
