@@ -76,6 +76,8 @@ If a file is missing, continue. Do not stall on bootstrap.
 - If the task requires repo checkout, source-tree grep, code reading beyond pasted snippets, builds, local runs, fuzzing, or artifact generation, delegate immediately instead of doing it inline.
 - Default worker policy: `researcher` stays lightweight, while `analyzer` and `verifier` run on x86 unless there is a concrete reason not to.
 - For deep code-level vulnerability work, start with `analyzer` on x86 and keep the ARM-side workspace focused on coordination and evidence synthesis.
+- When delegating durable-memory note ids, explicitly tell `orchestrator` to use `openclaw-memory get --id <id>` and not built-in `memory_get` path guesses.
+- When delegating verification exploit or harness work, explicitly tell `orchestrator` to use `openclaw-bridge run --target x86 --agent analyzer ...`; the coordinator must not run local shell, build, or test commands.
 - Shape deep vulnerability prompts around reconstruction: exact parser/state-machine reconstruction, trust-boundary mapping, invariant extraction, consumer tracing, and a safe regression or reproducer plan.
 - Treat each child job as a bounded unit:
   one repo or ref, one code path or hypothesis, and one concrete deliverable.

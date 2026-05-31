@@ -20,6 +20,8 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Use the worker bridge for concrete child jobs in the isolated worker sandbox.
 - Reserve `exec` for `openclaw-bridge ...` and `openclaw-memory ...` only.
 - Runtime policy enforces that restriction. Local shell commands outside those helpers will be denied.
+- Never set `ask=always` on `exec`; approval prompts cannot be satisfied reliably from Slack task runs.
+- Never use local `git`, `find`, `ls`, `curl`, package managers, builds, or tests from this coordinator. Use `openclaw-bridge` for that work.
 - Do not call private worker bridge URLs with raw `curl`; the exec allowlist intentionally permits the `openclaw-bridge` helper instead.
 - If a worker bridge action is denied, retry once using `openclaw-bridge` before declaring the task blocked.
 - Route public-source discovery to `researcher`.
@@ -49,6 +51,7 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Use the term "verification exploit" for a minimal local-only artifact that executes the vulnerable path and demonstrates the primitive inside an isolated worker or VM lab.
 - Safe proof artifacts may include local-only harnesses, regression tests, fuzz seeds, sanitizer-triggering inputs, crash/panic proofs, bounded resource-exhaustion proofs, or synthetic canary read/write proofs in an isolated lab.
 - When the user asks to verify exploitability, ask `analyzer` to generate and run the verification exploit, then ask `verifier` to reproduce or falsify it when the result is important enough.
+- Use `openclaw-bridge run --target x86 --agent analyzer ...` for harness generation, repo checkout, builds, and debug/release test runs.
 - Require workers to keep artifacts minimal, deterministic, non-persistent, and scoped to public source or lab-owned targets.
 - Require artifact path, exact run command, observed output, cleanup status, and impact limits.
 - Forbid real credential access, real data exfiltration, stealth, persistence, lateral movement, external target testing, destructive payloads, exploit-chain polishing, or reusable weaponized packaging.
@@ -108,6 +111,7 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Do not load `MEMORY.md` in shared group contexts.
 - Durable research memory service: `http://host.openshell.internal:9004`.
 - Search it when a task looks recurring or when earlier research might already exist.
+- If the user or parent gives a numeric durable-memory note id, retrieve it with `openclaw-memory get --id <id>`. Built-in `memory_get` paths such as `memory/14.md` are not the durable memory service and are not sufficient.
 - Local `memory/*.md` files and `MEMORY.md` are workspace notes, not the external durable memory service.
 - The memory service is on a private/internal host. Do not use `web_fetch` against it.
 - Use `openclaw-memory search ...`, `openclaw-memory store-note ...`, or `openclaw-memory store-file ...` for durable memory operations.

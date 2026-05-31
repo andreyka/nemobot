@@ -24,10 +24,14 @@ Use this file for environment-specific notes that matter to research work:
   `http://host.openshell.internal:9004`
 - Search:
   `openclaw-memory search --query '<terms>' --task '<optional-task>'`
+- Get durable note by numeric id:
+  `openclaw-memory get --id <id>`
 - Store note:
   `openclaw-memory store-note --agent orchestrator --task '<task>' --title '<title>' --summary '<summary>' --body-file <path>`
 - Store file:
   `openclaw-memory store-file --agent orchestrator --task '<task>' --path <path> --title '<title>'`
+- Worker run:
+  `openclaw-bridge run --target x86 --agent analyzer --session <short-key> --timeout <seconds> --query '<delegated prompt>'`
 - Durable success means `openclaw-memory` returned `ok: true` and a numeric `id`.
 
 Keep secrets out of long prose when possible.
