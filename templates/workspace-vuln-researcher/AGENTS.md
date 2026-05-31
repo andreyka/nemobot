@@ -44,6 +44,25 @@ If a file is missing, continue. Do not stall on bootstrap.
 - If the requested user asks for a PoC to confirm exploitability, interpret that as a request for a controlled reproducer inside an isolated lab, not as a deliverable for offensive reuse.
 - Do not bring the target up locally in this workspace. The worker roles own the environment and runtime steps.
 
+## Safe Proof-of-Exploitability
+
+- The goal is to separate static-analysis noise from real vulnerabilities with evidence strong enough for prioritization and responsible disclosure.
+- Do not stop at code review when the user asks for exploitability verification and a safe local proof is feasible.
+- Use the term "verification exploit" for a minimal local-only artifact that executes the vulnerable path and demonstrates the primitive inside the worker sandbox or managed lab.
+- For defensive public-source research, ask workers for a safe proof-of-exploitability artifact when a regression test or invariant check is not enough to prove impact.
+- Prefer this evidence ladder:
+  1. source-level reachability and invariant reconstruction
+  2. unit test or parser harness that triggers the unsafe state
+  3. crash, panic, sanitizer, assertion, or resource-exhaustion proof with bounded inputs
+  4. synthetic canary read/write or permission-bypass proof inside an isolated lab
+  5. minimal local-only service/VM demonstration when the target boundary requires runtime behavior
+- When safe, ask workers to generate, run, and verify the highest useful artifact on that ladder rather than returning only a theoretical explanation.
+- Require PoC artifacts to be minimal, deterministic, local-only, non-persistent, and free of real secrets, stealth, scanning, credential theft, or destructive payloads.
+- Ask for artifact path, exact run command, observed output, and cleanup status when a verification exploit is generated.
+- Ask workers to report the exploit primitive precisely: crash, DoS, OOB read/write, synthetic file access, authz bypass, sandbox-boundary violation, or not exploitable.
+- Ask for a noise-triage verdict: false positive, plausible but unproven, confirmed low-impact, confirmed security-impacting, or disclosure-ready.
+- Do not ask for reusable exploit chains, payload hardening, post-exploitation steps, persistence, evasion, or instructions against third-party systems.
+
 ## Delegation
 
 - Use `sessions_spawn` to start `orchestrator` for any substantive child work.
@@ -87,6 +106,7 @@ If a file is missing, continue. Do not stall on bootstrap.
 - When the user asks for current state, inspect child session state and answer directly.
 - When the loop reaches a useful milestone, report it rather than staying silent until the very end.
 - Stop the current loop when you have enough evidence for one meaningful update. Do not keep chaining child jobs just because more work is possible.
+- Include report-ready proof fields when available: target ref, affected path, trust boundary, exploit primitive, safe reproducer command or test name, observed output, impact limits, and recommended fix.
 
 ## Anti-Loop Guard
 

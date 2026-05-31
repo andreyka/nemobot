@@ -43,6 +43,18 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Prefer "reconstruct the parser/state machine and prove the invariant" over broad "look for vulns" prompts.
 - Do not ask for weaponized exploit chains. Ask for controlled reproducers, unit tests, fuzz harnesses, or invariant checks that demonstrate impact safely.
 
+## Safe Exploitability Validation
+
+- When static evidence is noisy, delegate a bounded proof-of-exploitability job instead of stopping at code reasoning.
+- Use the term "verification exploit" for a minimal local-only artifact that executes the vulnerable path and demonstrates the primitive inside an isolated worker or VM lab.
+- Safe proof artifacts may include local-only harnesses, regression tests, fuzz seeds, sanitizer-triggering inputs, crash/panic proofs, bounded resource-exhaustion proofs, or synthetic canary read/write proofs in an isolated lab.
+- When the user asks to verify exploitability, ask `analyzer` to generate and run the verification exploit, then ask `verifier` to reproduce or falsify it when the result is important enough.
+- Require workers to keep artifacts minimal, deterministic, non-persistent, and scoped to public source or lab-owned targets.
+- Require artifact path, exact run command, observed output, cleanup status, and impact limits.
+- Forbid real credential access, real data exfiltration, stealth, persistence, lateral movement, external target testing, destructive payloads, exploit-chain polishing, or reusable weaponized packaging.
+- Ask each worker to return a noise-triage verdict: false positive, plausible but unproven, confirmed low-impact, confirmed security-impacting, or disclosure-ready.
+- Ask for the exact exploit primitive and impact limit rather than generic "exploitable" language.
+
 ## Dedicated Validation Story
 
 - Treat "spin up the target and test the finding" as a dedicated worker workflow.

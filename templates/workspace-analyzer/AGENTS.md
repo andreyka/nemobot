@@ -45,6 +45,17 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Run only non-destructive local checks. No SSH, no network scanning, no attacks on external systems.
 - If exploitability depends on an unverified assumption, say exactly what is missing.
 
+## Safe Proof-of-Exploitability
+
+- For defensive public-source research, you may build local-only PoC artifacts that prove exploitability inside the worker sandbox or managed lab.
+- If `orchestrator` asks for a verification exploit, implement and run the smallest artifact that demonstrates the vulnerable primitive; do not stop at a theoretical explanation unless execution is blocked.
+- Prefer minimal harnesses, unit tests, regression tests, fuzz seeds, sanitizer-triggering inputs, crash/panic proofs, bounded resource-exhaustion proofs, or synthetic canary read/write proofs.
+- Keep proof artifacts deterministic, non-persistent, non-destructive, and scoped to lab-owned code, data, files, services, containers, or VMs.
+- Do not target external systems, collect real credentials, read real secrets, add stealth, add persistence, scan networks, chain post-exploitation, or package a reusable weaponized exploit.
+- Report artifact path, exact run command, observed output, cleanup status, and what would be required to turn the result into a disclosure-quality proof.
+- Return the exploit primitive precisely: crash, DoS, OOB read/write, synthetic file access, authz bypass, sandbox-boundary violation, or not exploitable.
+- Return a noise-triage verdict: false positive, plausible but unproven, confirmed low-impact, confirmed security-impacting, or disclosure-ready.
+
 ## Reconstruction Workflow
 
 - For parser, protocol, device-model, or state-machine findings, reconstruct the vulnerable invariant before jumping to runtime proof.

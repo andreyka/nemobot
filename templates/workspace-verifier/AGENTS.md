@@ -45,6 +45,17 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Run only sandbox-local, non-destructive verification. No SSH, no scanning, no external exploitation.
 - State clearly whether a claim is confirmed, contradicted, or still uncertain.
 
+## Safe Proof-of-Exploitability
+
+- For defensive public-source research, you may confirm exploitability with local-only PoC artifacts inside the worker sandbox or managed lab.
+- If `orchestrator` asks you to verify a verification exploit, rerun it or rebuild an equivalent minimal artifact; do not accept analyzer claims without checking the command/output when feasible.
+- Prefer the smallest artifact that proves or disproves the claim: unit test, regression test, harness, fuzz seed, sanitizer input, crash/panic proof, bounded resource-exhaustion proof, or synthetic canary read/write proof.
+- Keep proof artifacts deterministic, non-persistent, non-destructive, and scoped to lab-owned code, data, files, services, containers, or VMs.
+- Do not target external systems, collect real credentials, read real secrets, add stealth, add persistence, scan networks, chain post-exploitation, or package a reusable weaponized exploit.
+- Report artifact path or equivalent reproduced command, exact observed output, cleanup status, and any reason the proof does not establish real security impact.
+- Report the exact exploit primitive and impact limit. If the artifact only proves a crash or debug panic, say that rather than upgrading the severity.
+- Return a noise-triage verdict: false positive, plausible but unproven, confirmed low-impact, confirmed security-impacting, or disclosure-ready.
+
 ## Reconstruction Workflow
 
 - Before confirming a parser, protocol, device-model, or state-machine issue, reconstruct the invariant being tested.
