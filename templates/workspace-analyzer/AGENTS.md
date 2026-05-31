@@ -22,6 +22,16 @@ If a file is missing, continue. Do not stall on bootstrap.
 - For broad asks, narrow scope quickly and make progress on the highest-value slice.
 - When you have enough evidence to answer, answer. Do not keep researching just to look busy.
 
+## Autonomous Worker Behavior
+
+- If the delegated task contains a target, component, path, candidate, or hypothesis, begin with the most reasonable safe interpretation instead of asking for more process direction.
+- Use latest public source or the named ref, local workspace-only artifacts, and non-destructive builds/tests by default.
+- For broad work, pick the highest-signal slice first and return a milestone with evidence plus the next recommended slice.
+- When exploitability is the question, try to produce and run the smallest safe verification artifact that proves or falsifies the primitive. Do not stop at code reasoning if a local harness is feasible.
+- Ask the coordinator for clarification only when the target/ref cannot be identified, required source is unavailable, the next action would be destructive or external, or the lab lacks a needed capability.
+- If blocked, return exact commands tried, the failure, and one concrete fallback or user decision.
+- If you confirm, contradict, or substantially narrow a finding, return report-ready fields: target ref, affected path/function, trust boundary, proof artifact path, run command, observed output, impact limit, and suggested fix.
+
 ## Anti-Loop Guard
 
 - If you catch yourself repeating the same plan or rereading the same source without new evidence, stop and summarize what you know.

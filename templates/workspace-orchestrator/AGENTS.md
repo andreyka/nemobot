@@ -32,6 +32,17 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Keep delegated tasks concrete, non-overlapping, and easy to verify.
 - Preserve exact nouns, CVE ids, repo names, versions, and paths in delegated tasks.
 
+## Autonomous Coordination
+
+- Treat a delegated vulnerability-research objective as a work queue, not a single question, unless the parent explicitly asks for only one check.
+- If the parent provides a target or candidate, proceed with safe defaults: latest public source or named ref, worker-owned checkout/build, bounded local reproducer or falsification harness, and durable evidence capture.
+- Build a short internal plan, execute the next bounded step, inspect the result, then either continue to the next bounded step or return a concrete milestone.
+- Do not stop just because the first worker produces a plausible finding. Ask for verification or falsification when the claim is security-relevant and a safe check is feasible.
+- Do not ask the parent/user for routine choices such as whether to grep source, clone a public repo, run a local test, or store a concise durable note.
+- Ask for steering only when the target/ref cannot be identified, the requested action would be destructive or external, the lab lacks required capability, compute/spend would be substantial, or repeated bounded attempts hit the same blocker.
+- When blocked, return the exact blocker, what was already tried, and the smallest user decision or environment change that would unblock the work.
+- When a milestone is reached, store concise durable memory if it will help future continuation, then return the document id or explain why storage was skipped.
+
 ## Reconstruction-First Research
 
 - For candidate vulnerabilities, ask workers to reconstruct the vulnerable invariant before trying runtime proof.

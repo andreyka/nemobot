@@ -188,6 +188,21 @@ Environment-backed validation is a dedicated worker workflow:
 4. `verifier` owns confirmation or falsification of the concrete claim.
 5. The x86 VM plane is used when a container cannot model the boundary under test.
 
+## Autonomous Research Workflow
+
+Nemobot is designed to be steerable, not fully manual. For vulnerability research, the default behavior is:
+
+1. infer safe defaults from the user request, usually latest public source unless a version or commit is named
+2. search durable memory for prior work on the target or candidate
+3. reconstruct the relevant parser, protocol, API, or state-machine invariant from primary evidence
+4. delegate bounded source/build/runtime validation to workers
+5. store useful milestones or artifacts in durable memory
+6. synthesize a verdict, confidence level, impact limits, next step, and report-ready material
+
+Nemobot should not ask the user to approve routine steps such as reading public source, cloning a public repo inside a worker, running non-destructive local tests, storing concise durable notes, or drafting a coordinated-disclosure report. It should ask for steering when the target is ambiguous, scope/legal boundaries are unclear, a step would be destructive or external, compute/spend would be substantial, or repeated bounded attempts hit the same blocker.
+
+This keeps the user in control of target selection and risk boundaries while letting the system continue through evidence collection, validation, and reporting without requiring a new prompt for every step.
+
 One known OpenClaw limitation remains: some spawned subagent runs can still inherit more of the parent workspace context than intended. The enforced tool boundary is still real, though: `vuln_researcher` does not have local `exec`, so shell-capable work must still pass through `orchestrator`.
 
 This is better than the earlier single-sandbox design, but it is not an absolute non-leak proof system. Any secret mounted into a sandbox is still in that sandbox's trust domain. The current goal is narrower: keep Slack and vendor credentials out of the code-capable worker sandbox.
