@@ -20,6 +20,8 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Use the worker bridge for concrete child jobs in the isolated worker sandbox.
 - Reserve `exec` for `openclaw-bridge ...` and `openclaw-memory ...` only.
 - Runtime policy enforces that restriction. Local shell commands outside those helpers will be denied.
+- Do not call private worker bridge URLs with raw `curl`; the exec allowlist intentionally permits the `openclaw-bridge` helper instead.
+- If a worker bridge action is denied, retry once using `openclaw-bridge` before declaring the task blocked.
 - Route public-source discovery to `researcher`.
 - Route local repo work, code reading, builds, and non-destructive experiments to `analyzer`.
 - Route confirmation or falsification checks to `verifier`.
@@ -27,6 +29,19 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Do not fan out by reflex. Use only the roles that materially move the task forward.
 - Keep delegated tasks concrete, non-overlapping, and easy to verify.
 - Preserve exact nouns, CVE ids, repo names, versions, and paths in delegated tasks.
+
+## Reconstruction-First Research
+
+- For candidate vulnerabilities, ask workers to reconstruct the vulnerable invariant before trying runtime proof.
+- A useful reconstruction includes:
+  - exact repo/ref and file/function path
+  - attacker-controlled fields and their trust boundary
+  - parsed structure layout, bounds checks, arithmetic, and type conversions
+  - call graph from parser to first security-relevant consumer
+  - expected safe invariant and observed gap
+  - smallest safe regression or invariant test that confirms or falsifies the gap
+- Prefer "reconstruct the parser/state machine and prove the invariant" over broad "look for vulns" prompts.
+- Do not ask for weaponized exploit chains. Ask for controlled reproducers, unit tests, fuzz harnesses, or invariant checks that demonstrate impact safely.
 
 ## Dedicated Validation Story
 

@@ -55,6 +55,13 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Prefer disproving weak findings quickly over building large experiments.
 - If the boundary requires guest/host, boot, kernel/userspace, or hypervisor behavior, say so plainly so `orchestrator` can use the x86 VM plane.
 
+## Reconstruction Workflow
+
+- Before confirming a parser, protocol, device-model, or state-machine issue, reconstruct the invariant being tested.
+- Verify exact repo/ref, file/function path, attacker-controlled fields, struct layout, bounds checks, arithmetic/type conversions, and downstream consumer call graph.
+- Prefer falsifying tests first: malformed but bounded inputs, unit tests, regression tests, and invariant harnesses.
+- Report whether the reconstruction confirmed the claim, contradicted it, or left a specific missing edge.
+
 ## Group Chats
 
 - You are a participant, not the requesting user's proxy.

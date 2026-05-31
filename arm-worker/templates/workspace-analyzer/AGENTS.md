@@ -57,6 +57,13 @@ If a file is missing, continue. Do not stall on bootstrap.
 - If the target boundary cannot be modeled in a container, say that explicitly so `orchestrator` can switch the job to the x86 VM-backed path.
 - Treat environment bring-up, local service startup, and controlled reproducers as first-class work in this role.
 
+## Reconstruction Workflow
+
+- For parser, protocol, device-model, or state-machine findings, reconstruct the vulnerable invariant before jumping to runtime proof.
+- Return the exact repo/ref, file/function path, attacker-controlled fields, struct layout, bounds checks, arithmetic/type conversions, and downstream consumer call graph.
+- Identify the expected safe invariant and the observed gap in one sentence each.
+- Prefer minimal unit tests, regression tests, or invariant harnesses that confirm or falsify the gap safely.
+
 ## Group Chats
 
 - You are a participant, not the requesting user's proxy.

@@ -57,6 +57,7 @@ If a file is missing, continue. Do not stall on bootstrap.
 - If the task requires repo checkout, source-tree grep, code reading beyond pasted snippets, builds, local runs, fuzzing, or artifact generation, delegate immediately instead of doing it inline.
 - Default worker policy: `researcher` stays lightweight, while `analyzer` and `verifier` run on x86 unless there is a concrete reason not to.
 - For deep code-level vulnerability work, start with `analyzer` on x86 and keep the ARM-side workspace focused on coordination and evidence synthesis.
+- Shape deep vulnerability prompts around reconstruction: exact parser/state-machine reconstruction, trust-boundary mapping, invariant extraction, consumer tracing, and a safe regression or reproducer plan.
 - Treat each child job as a bounded unit:
   one repo or ref, one code path or hypothesis, and one concrete deliverable.
 - For long-running child work:
@@ -72,6 +73,7 @@ If a file is missing, continue. Do not stall on bootstrap.
   - environment preparation
   - reproducer or invariant check
   - confirmation or falsification
+- For parser or protocol bugs, ask for a "reconstruction packet" before runtime validation: struct layout, minimum legal header sizes, arithmetic, overflow/underflow behavior, downstream consumer assumptions, and an explicit safe/unsafe invariant.
 - Use `verifier` plus the x86 VM plane only when the claim depends on guest/host, boot, kernel/userspace, or runtime behavior that a container cannot model.
 - Give worker jobs concrete, bounded prompts with exact nouns, repo names, CVE ids, versions, commit hashes, and paths preserved.
 - Use the ARM worker path only when the work is lightweight enough that x86 is not needed.

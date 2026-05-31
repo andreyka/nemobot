@@ -45,6 +45,13 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Run only non-destructive local checks. No SSH, no network scanning, no attacks on external systems.
 - If exploitability depends on an unverified assumption, say exactly what is missing.
 
+## Reconstruction Workflow
+
+- For parser, protocol, device-model, or state-machine findings, reconstruct the vulnerable invariant before jumping to runtime proof.
+- Return the exact repo/ref, file/function path, attacker-controlled fields, struct layout, bounds checks, arithmetic/type conversions, and downstream consumer call graph.
+- Identify the expected safe invariant and the observed gap in one sentence each.
+- Prefer minimal unit tests, regression tests, or invariant harnesses that confirm or falsify the gap safely.
+
 ## Group Chats
 
 - You are a participant, not the requesting user's proxy.

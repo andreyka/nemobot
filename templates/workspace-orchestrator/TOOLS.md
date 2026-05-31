@@ -18,6 +18,7 @@ Use this file for environment-specific notes that matter to research work:
 - Explicit override when needed:
   `openclaw-bridge --target arm|x86 --agent <agent> --session <short-key> --query '<delegated prompt>'`
 - Use `openclaw-bridge` for worker routing because `web_fetch` blocks the private-cluster-only bridge hostnames.
+- Do not use raw `curl` against worker bridge service names from this workspace; it will miss the exec allowlist.
 - This workspace is runtime-restricted to `openclaw-bridge` and `openclaw-memory` for `exec`.
 - Memory service base URL:
   `http://host.openshell.internal:9004`

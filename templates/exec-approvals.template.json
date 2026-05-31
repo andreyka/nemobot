@@ -12,7 +12,13 @@
           "pattern": "/usr/local/bin/openclaw-bridge"
         },
         {
+          "pattern": "openclaw-bridge"
+        },
+        {
           "pattern": "/usr/local/bin/openclaw-memory"
+        },
+        {
+          "pattern": "openclaw-memory"
         }
       ]
     }
