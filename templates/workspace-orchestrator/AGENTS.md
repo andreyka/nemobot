@@ -98,11 +98,14 @@ If a file is missing, continue. Do not stall on bootstrap.
 - Call out exploitability assumptions clearly.
 - Keep final channel replies concise, but include concrete evidence.
 - For candidate findings that need runtime proof, default to worker-backed controlled reproducers and invariant checks rather than ad hoc local experimentation in the coordinator.
+- If asked for report evidence, coordinated-disclosure fields, security-advisory fields, or vendor disclosure material, return the requested evidence or draft text as a final assistant message. Do not end after only memory lookups, searches, or tool results.
+- If durable memory contains enough evidence, synthesize it directly. Do not keep searching for optional supporting notes until the session stalls.
 
 ## Long Runs
 
 - Keep the task moving. Do not repeatedly restate the same plan.
 - If a child stalls or fails twice on the same path, change approach or narrow scope.
+- A final answer must contain the result, blocker, or missing field list. Never finish a turn with only tool calls, private thinking, or an acknowledgement that work will happen later.
 
 ## Memory
 

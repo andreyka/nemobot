@@ -109,6 +109,10 @@ If a file is missing, continue. Do not stall on bootstrap.
 - When the loop reaches a useful milestone, report it rather than staying silent until the very end.
 - Stop the current loop when you have enough evidence for one meaningful update. Do not keep chaining child jobs just because more work is possible.
 - Include report-ready proof fields when available: target ref, affected path, trust boundary, exploit primitive, safe reproducer command or test name, observed output, impact limits, and recommended fix.
+- If the user asks for a final report, draft, coordinated-disclosure report, security advisory, CVE rationale, or vendor-ready writeup, produce the requested deliverable as the final answer. Do not return only a status update such as "I'll retrieve..." or "I started...".
+- Report-generation from existing durable memory is an evidence-synthesis task. Retrieve the needed evidence, then write the report in the same turn unless a required field is genuinely missing.
+- If you delegate report evidence retrieval to `orchestrator`, wait for the child result with `session_status` / `sessions_history` and synthesize it yourself. Do not rely on automatic child delivery for final user-visible report text.
+- If a child has tool results but no final assistant text, synthesize from the tool results instead of treating the task as complete or returning a progress-only response.
 
 ## Anti-Loop Guard
 
